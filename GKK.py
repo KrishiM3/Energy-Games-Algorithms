@@ -254,24 +254,6 @@ class Graph:
             plus = float('inf')
         return min(-minus,plus)
 
-    def check_for_bi_safe_reductions(self):
-        # ...
-        pass
-    def apply_potential_transformation(self):
-        # ...
-        pass
-    def find_energy_values(self):
-        # ...
-        pass
-    def perform_reduction(self):
-        # ...
-        pass
-    def iterate_reductions(self):
-        # ...
-        pass
-    def detect_terminal_conditions(self):
-        # ...
-        pass
     def extract_strategies(self):
         N_star, P_star = self.run_gkk_algorithm()
         for node in self.nodes:
