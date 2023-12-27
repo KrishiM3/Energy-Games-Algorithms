@@ -264,6 +264,7 @@ class Graph:
         return N_star,P_star
 
     def run_gkk_algorithm(self):
+        iterations = 0
         P_star = set()
         N_star = set()
         delta = 0
@@ -276,7 +277,9 @@ class Graph:
             P_star, N_star = self.classify_nodes(self.nodes, modified)
             self.apply_modified(modified)
             delta = self.calculate_Delta(N_star, P_star)
-
+            iterations = iterations + 1
+        print("num of iterations is: ", iterations)
+        self.reset_potentials()
         return N_star,P_star
 
     # Additional methods specific to the GKK algorithm can be added here.
