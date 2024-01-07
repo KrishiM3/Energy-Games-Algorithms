@@ -55,29 +55,47 @@ class Graph:
             from_node.add_edge(edge)
 
     def initX(self):
-        # max = -float("inf")
-        # for edge in self.edges:
-        #     if edge.weight > max:
-        #         max = edge.weight
-        # for node in self.nodes:
-        #     if node.node_type == "Max":
-        #         self.x[node.node_id] = max
-        #     else:
-        #         self.x[node.node_id] = 0
-        self.x = self.realiseGraph(self.edges)
+        """We want a preliminary polpoten so we must find any random point which satisfies our inequalities"""
+        c = [1] * len(self.x)  # Coefficients for x are 0, coefficient for ε is -1 (since linprog minimizes)
+
+        # Constraints
+        A = []
+        b_vec = []
+        for edge in self.edges:
+            a, b = edge.from_node.node_id, edge.to_node.node_id
+            row = [0] * len(self.x)  # Initialize with coefficients for x (0) 
+
+            if self.nodesList[a].node_type == 'Max':
+                row[list(self.x.keys()).index(a)] = -1 
+                row[list(self.x.keys()).index(b)] = 1
+                A.append(row)  # For Max nodes, xa + ε * x^+_a - xb - ε * x^+_b >= w(e)
+                b_vec.append(-edge.weight)
+            else:
+                row[list(self.x.keys()).index(a)] = 1 
+                row[list(self.x.keys()).index(b)] = -1
+                A.append(row)
+                b_vec.append(edge.weight)
+
+        # Bounds
+        bounds = [(0, None)] * len(self.x)  # No bounds on x, ε >= 0
+
+        # Solve the linear program
+        result = linprog(c, A_ub=A, b_ub=b_vec, bounds=bounds, method='simplex')
+        node_to_x_value = {node_id: x_value for node_id, x_value in zip(self.x.keys(), result.x)}
+        self.x = node_to_x_value
         return 
     
     def stronglyViolatingCheck(self, delta):
         """ Returns True if there exists an edge which is strongly violating"""
         for edge in self.edges:
-            if edge.from_node.node_id == "Min":
+            if edge.from_node.node_type == "Min":
                 if delta[edge.from_node.node_id] > 0 and delta[edge.to_node.node_id] < 0:
                     return True
-                pass
+                continue
             else:
                 if delta[edge.from_node.node_id] < 0 and delta[edge.to_node.node_id] > 0:
                     return True
-                pass
+                continue
         return False
     
     def obtainTightEdges(self, shift):
@@ -180,35 +198,6 @@ class Graph:
         return xPlus
     def compute_EpsilonMax(self , xPlus):
         """ Computes Episilion Max using Simplex Method"""
-        # Define the objective: Maximize ε, which is the last variable in our problem
-        # c = [0] * len(self.x) + [-1]  # Coefficients for x are 0, coefficient for ε is -1 (since linprog minimizes)
-
-        # # Constraints
-        # A = []
-        # b_vec = []
-        # for edge in self.edges:
-        #     a, b = edge.from_node.node_id, edge.to_node.node_id
-        #     row = [0] * len(self.x) + [-xPlus[a]]  # Initialize with coefficients for x (0) and ε
-        #     row[list(self.x.keys()).index(a)] = 1 + xPlus[a]  # Coefficient for xa and ε * x^+_a
-        #     row[list(self.x.keys()).index(b)] = -1 - xPlus[b]  # Coefficient for xb and ε * x^+_b
-
-        #     if self.nodesList[a].node_type == 'Max':
-        #         A.append(row)  # For Max nodes, xa + ε * x^+_a - xb - ε * x^+_b >= w(e)
-        #         b_vec.append(edge.weight - self.x[a] + self.x[b])
-        #     else:
-        #         A.append([-val for val in row])  # Negate for Min nodes to change >= to <=
-        #         b_vec.append(-edge.weight + self.x[a] - self.x[b])
-
-        # # Bounds
-        # bounds = [(None, None)] * len(self.x) + [(0, None)]  # No bounds on x, ε >= 0
-
-        # # Solve the linear program
-        # result = linprog(c, A_ub=A, b_ub=b_vec, bounds=bounds, method='simplex')
-
-        # # The maximum ε
-        # max_epsilon = -result.fun  # Because we minimized -ε
-        # return max_epsilon
-        """ Computes Epsilon Max using Simplex Method"""
         c = [-1]  # Minimize -ε to maximize ε
 
         A = []
@@ -233,7 +222,7 @@ class Graph:
                 A.append(row)
                 B.append(constant_term)
 
-        bounds = [(None, None)]  # ε >= 0
+        bounds = [(0, None)]  # ε >= 0
 
         result = linprog(c, A_ub=A, b_ub=B, bounds=bounds, method='simplex')
 
@@ -249,48 +238,94 @@ class Graph:
         """ Obtains a new x in PolPoten using the tight edges in x + epsilion * X^+ and changing the inequalities into 
             equalities
         """
-        # Initialize matrices A and b
-        A = [[0 for _ in range(len(self.nodes))] for _ in range(len(edges))]
-        b = [0 for _ in range(len(edges))]
+        c = [0] * len(self.x)  # Coefficients for x are 0, coefficient for ε is -1 (since linprog minimizes)
 
-        # Fill in the matrices based on the edges
-        for i, edge in enumerate(edges):
-            from_idx = edge.from_node.node_id
-            to_idx = edge.to_node.node_id
-            A[i][from_idx - 1] = 1
-            A[i][to_idx - 1] = -1
-            b[i] = edge.weight
-        A = np.array(A)
-        b = np.array(b).reshape(-1, 1)
-        # Solve the system of equations outside the for loop
-        x , residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
-        x = x.flatten()   
-        x = dict(zip(self.nodesID, x))
-        return x
+        # Constraints
+        A = []
+        b_vec = []
+        for edge in self.edges:
+            a, b = edge.from_node.node_id, edge.to_node.node_id 
+            if edge in edges:
+                row = [0] * len(self.x)  # Initialize with coefficients for x (0)
+                row[list(self.x.keys()).index(a)] = -1 
+                row[list(self.x.keys()).index(b)] = 1
+                A.append(row)  # For Max nodes, xa + ε * x^+_a - xb - ε * x^+_b >= w(e)
+                b_vec.append(-edge.weight)
+                row = [0] * len(self.x)  # Initialize with coefficients for x (0)
+                row[list(self.x.keys()).index(a)] = 1 
+                row[list(self.x.keys()).index(b)] = -1
+                A.append(row)
+                b_vec.append(edge.weight)
+            else:
+                row = [0] * len(self.x)
+                if self.nodesList[a].node_type == 'Max':
+                    row[list(self.x.keys()).index(a)] = -1 
+                    row[list(self.x.keys()).index(b)] = 1
+                    A.append(row)  # For Max nodes, xa + ε * x^+_a - xb - ε * x^+_b >= w(e)
+                    b_vec.append(-edge.weight)
+                else:
+                    row[list(self.x.keys()).index(a)] = 1 
+                    row[list(self.x.keys()).index(b)] = -1
+                    A.append(row)
+                    b_vec.append(edge.weight)
+
+        # Bounds
+        bounds = [(0, None)] * len(self.x)  # No bounds on x, ε >= 0
+
+        # Solve the linear program
+        result = linprog(c, A_ub=A, b_ub=b_vec, bounds=bounds, method='simplex')
+        if not result.success:
+            print("Failure")
+        node_to_x_value = {node_id: x_value for node_id, x_value in zip(self.x.keys(), result.x)}
+        return node_to_x_value
+ 
+        # # Initialize matrices A and b
+        # A = [[0 for _ in range(len(self.nodes))] for _ in range(len(edges))]
+        # b = [0 for _ in range(len(edges))]
+
+        # # Fill in the matrices based on the edges
+        # for i, edge in enumerate(edges):
+        #     from_node = edge.from_node
+        #     to_node = edge.to_node
+        #     if from_node.node_type == "Max":
+        #         A[i][from_node.node_id - 1] = -1
+        #         A[i][to_node.node_id - 1] = 1
+        #         b[i] = -edge.weight
+        #     else:
+
+        #         A[i][from_node.node_id - 1] = 1
+        #         A[i][to_node.node_id - 1] = -1
+        #         b[i] = edge.weight
+        # A = np.array(A)
+        # b = np.array(b).reshape(-1, 1)
+        # # Solve the system of equations outside the for loop
+        # x , residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
+        # x = x.flatten()   
+        # x = dict(zip(self.nodesID, x))
+        # return x
     
     def PolyValIteration(self):
         self.initX()
-        delta = {}
-        count = True
-        xplus = {}
-        while count or self.stronglyViolatingCheck(delta):
+        tight = self.obtainTightEdges(None)
+        delta = self.calculate_Delta(tight)
+        xplus = self.calculate_characterisation(delta) 
+        while self.stronglyViolatingCheck(delta):
             print("hi")
-            count = False
-            tight = self.obtainTightEdges(None)
-            delta = self.calculate_Delta(tight)
-            xplus = self.calculate_characterisation(delta) 
             epsilon = self.compute_EpsilonMax(xplus)
             xplus = self.updateShift(epsilon, xplus) ## now xplus is now epsilon * X^+
             self.x = self.realiseGraph(self.obtainTightEdges(xplus)) ## update our polhedron
+            tight = self.obtainTightEdges(None)
+            delta = self.calculate_Delta(tight)
+            xplus = self.calculate_characterisation(delta)
         Wmax = set()
         Wmin = set()
         for node in self.nodes:
             if xplus[node.node_id] and xplus[node.node_id] > 0:
                 Wmax.add(node)
-                print(str(node), " Wins for Max")
+                print(str(node), " Wins for Max with energy value: infinity")
             else:
                 Wmin.add(node)
-                print(str(node), " Wins for Min")
+                print(str(node), " Wins for Min with energy value: ", self.x[node.node_id])
         
         return
     def __repr__(self):
