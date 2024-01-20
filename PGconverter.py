@@ -12,7 +12,11 @@ def parse_line(line):
     identifier = int(parts[0])
     priority = int(parts[1])
     owner = int(parts[2])
-    successors = list(map(int, parts[3].split(',')))
+    # Check if the last character of the last successor is a semi-colon and remove it
+    successors = parts[3].split(',')
+    if successors[-1].endswith(';'):
+        successors[-1] = successors[-1][:-1]  # Remove the semi-colon from the last successor
+    successors = list(map(int, successors))
     
     return Node(identifier,priority,owner, successors)
 
@@ -24,7 +28,11 @@ def convertPGfile(filename):
             if line.strip():  # Check if line is not empty
                 newnode = parse_line(line)
                 nodeDict[newnode.id] = newnode
-    newfile = '/OinkEGtests/' + os.path.splitext(filename)[0] + '_EnergyTest.txt'
+    # Extract the base name without the path and extension
+    base_name = os.path.splitext(os.path.basename(filename))[0]
+
+    # Construct the new file path
+    newfile = os.path.join('EGtests', f"{base_name}_EnergyTest.txt")
     m = len(nodeDict)
     with open(newfile, 'w') as file:
         for key in nodeDict:
@@ -42,5 +50,16 @@ def convertPGfile(filename):
             file.write(f"{node.id} {node.type} {edges_str} {weights_str}\n")
     return 
 
-# Parse the content of the simulated 'test.txt' file
-parsed_data = convertPGfile('/OinkPGtests/vb001')
+# Define the directory
+directory = 'PGtests'
+
+# Iterate over all files in the directory
+for filename in os.listdir(directory):
+    # Construct the full file path
+    file_path = os.path.join(directory, filename)
+    
+    # Check if it's a file and not a directory
+    if os.path.isfile(file_path):
+        # Call the convertPGfile function on each file
+        parsed_data = convertPGfile(file_path)
+        # Do something with parsed_data if needed, or continue
