@@ -1,0 +1,8 @@
+Iteration Count: 1
+0 , has a energy value of: 0
+1 , has a energy value of: 49
+2 , has a energy value of: 0
+3 , has a energy value of: 0
+4 , has a energy value of: 117698
+5 , has a energy value of: 0
+6 , has a energy value of: 117699

@@ -1,0 +1,13 @@
+Iteration Count: 4
+0 , has a energy value of: inf
+1 , has a energy value of: inf
+2 , has a energy value of: inf
+3 , has a energy value of: inf
+4 , has a energy value of: inf
+5 , has a energy value of: inf
+6 , has a energy value of: inf
+7 , has a energy value of: inf
+8 , has a energy value of: inf
+9 , has a energy value of: inf
+10 , has a energy value of: inf
+11 , has a energy value of: inf
