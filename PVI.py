@@ -1,6 +1,7 @@
 from scipy.optimize import linprog
 import numpy as np
 import os
+import sys
 class Node:
     def __init__(self, node_id, node_type):
         self.node_id = node_id
@@ -276,6 +277,7 @@ class Graph:
         result = linprog(c, A_ub=A, b_ub=b_vec, bounds=bounds, method='simplex')
         if not result.success:
             print("Failure")
+            sys.exit()
         node_to_x_value = {node_id: x_value for node_id, x_value in zip(self.x.keys(), result.x)}
         return node_to_x_value
  
@@ -321,7 +323,7 @@ class Graph:
         for node in self.nodes:
             if xplus[node.node_id] and xplus[node.node_id] > 0:
                 Wmax.add(node)
-                print(str(node), " Wins for Max with energy value: infinity")
+                print(str(node), " Wins for Max with energy value: Infinity")
             else:
                 Wmin.add(node)
                 print(str(node), " Wins for Min with energy value: ", self.x[node.node_id])
@@ -364,7 +366,7 @@ def createGraph(filename):
 
     return graph
 
-graph = createGraph(os.path.join('OinkEGtests', "vb004_EnergyTest.txt"))
+graph = createGraph(os.path.join('debugEGs', "debug9_EnergyTest.txt"))
 print(graph)
 for node in graph.nodes:
     print(node)

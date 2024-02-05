@@ -32,7 +32,7 @@ def convertPGfile(filename):
     base_name = os.path.splitext(os.path.basename(filename))[0]
 
     # Construct the new file path
-    newfile = os.path.join('OinkEGtests', f"{base_name}_EnergyTest.txt")
+    newfile = os.path.join('debugEGs', f"{base_name}_EnergyTest.txt")
     m = len(nodeDict)
     with open(newfile, 'w') as file:
         for key in nodeDict:
@@ -51,7 +51,7 @@ def convertPGfile(filename):
     return 
 
 # Define the directory
-directory = 'OinkPGtests'
+directory = 'debugPGs'
 
 # Iterate over all files in the directory
 for filename in os.listdir(directory):
