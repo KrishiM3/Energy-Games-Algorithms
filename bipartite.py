@@ -1,5 +1,4 @@
 import os
-trivials = {}  # map to keep the trivial nodes and the winner of that respective node.
 class Node:
     def __init__(self, node_id, node_type):
         self.node_id = node_id
@@ -51,11 +50,19 @@ class SCC:
         return f"SCC(Nodes: {node_ids}, Max: {self.contains_max}, Min: {self.contains_min})"
     
     def extractTrivials(self):
+        trivialnodes = []
         if (self.contains_max and self.contains_min == False):
-            singleTypeSCCtrivials(self, self.contains_max)
+            isTrivial = singleTypeSCCtrivials(self, self.contains_max)
+            if isTrivial:
+                return self.nodes
         else:
-            dualTypeSCCtrivials(self)
-        return
+            minList, maxList = dualTypeSCCtrivials(self)
+            if minList:
+                trivialnodes.extend(minList)
+            if maxList:
+                trivialnodes.extend(maxList)
+            return trivialnodes
+        return trivialnodes
     
 
 
@@ -171,6 +178,7 @@ class Graph:
         self.nodesList = {}  # Dictionary to store nodes by their ID
         self.nodes = []
         self.edges = []  # List to store all edges
+        self.trivials = {}  # map to keep the trivial nodes and the winner of that respective node.
     def add_node(self, node):
         """Add a node to the graph."""
         if node.node_id not in self.nodesList:
@@ -282,6 +290,93 @@ class Graph:
                 return scc
         return None
 
+    def BFSattractors(self,alltrivs):
+        """ This function takes a list of tuples and outputs another list of tuples
+         The procedure:
+        This function will act as an inverted BFS, so we travel to nodes if they have an incident edge to the current node we are on. 
+        This is acting as our attractors. 
+        we initialise two lists, trivials and alltrivs, where trivials is our result array and alltrivs is our queue.
+        for all nodes in our queue we do the following:
+        pop from queue.
+        add to trivials
+        obtain all incident nodes. 
+        If the tuples second element is min:
+        if any incidents are min, add them to alltrivs with the tuple (node, min)
+        if any are max, check if all edges outgoing go to a node in self.trivials with value min or to a dictionary which stores all of the seen trivials so far in our BFS with value min
+            if all edges go to a node with min trivial value then make the tuple node, min and add to our queue.
+
+        This is analagous for if the second element in our tuple is max.
+        """
+        trivials = []  # Result array, will contain tuples of (Node object, 'min'/'max')
+        queue = alltrivs[:]  # Initialize queue with alltrivs
+        seen_trivials = {node.node_id: node_type for node, node_type in alltrivs}  # Track seen trivial nodes by their ID
+
+        while queue:
+            current_node, node_type = queue.pop(0)  # Dequeue the next node
+            if current_node.node_id not in seen_trivials:  # Process if not already seen
+                trivials.append((current_node, node_type))  # Mark as trivial
+                seen_trivials[current_node.node_id] = node_type  # Track seen trivial nodes
+
+                # Process incident nodes
+                for incident_node in current_node.incidents:
+                    incident_node_type = incident_node.node_type
+
+                    # Process based on current trivial node type
+                    if node_type == 'Min':
+                        if incident_node_type == 'Min':
+                            if incident_node.node_id not in seen_trivials:
+                                queue.append((incident_node, 'Min'))
+                                seen_trivials[incident_node.node_id] = 'Min'
+                        elif incident_node_type == 'Max':
+                            if all((edge.to_node.node_id in seen_trivials and seen_trivials[edge.to_node.node_id] == 'Min') for edge in incident_node.edges):
+                                if incident_node.node_id not in seen_trivials:
+                                    queue.append((incident_node, 'Min'))
+                                    seen_trivials[incident_node.node_id] = 'Min'
+                    
+                    elif node_type == 'Max':
+                        if incident_node_type == 'Max':
+                            if incident_node.node_id not in seen_trivials:
+                                queue.append((incident_node, 'Max'))
+                                seen_trivials[incident_node.node_id] = 'Max'
+                        elif incident_node_type == 'Min':
+                            if all((edge.to_node.node_id in seen_trivials and seen_trivials[edge.to_node.node_id] == 'Max') for edge in incident_node.edges):
+                                if incident_node.node_id not in seen_trivials:
+                                    queue.append((incident_node, 'Max'))
+                                    seen_trivials[incident_node.node_id] = 'Max'
+        return trivials
+
+    def removeAllTrivials(self):
+        """ Aim of this function is to remove all Trivial Nodes and cycles found in our graph.
+            This is done by calling .extractTrivials() on all our SCCs and merging all the resultant lists, k .
+            If this list is non-empty then we can make use of attracters to conclusively trivially find other nodes we know win for Max or Min
+            This is done by conducting a BFS: 
+            If the node in K is owned by min, Then if any of its incident min-nodes are also trivial and should be added to our list.
+            If any of its incident Max-nodes can only go to nodes in our trivials dictionary winning for min or trivial min nodes in K, then that node wins for min and should be added to K
+            this is analgous for max nodes in K. 
+            Otherwise if our initialisation of K is empty we are done and all trivial nodes/cycles have been removed. 
+            If k was not empty, after conducting our reverse BFS like traversal.
+            We remove all nodes that were in K, add them to our trivials dictionary and recompute the SCCs. Recursively calling this algorithm until there are no more trivial nodes and cycles"""
+        alltrivs = []
+        for scc in self.sccs:
+            trivial_nodes = scc.extractTrivials()  # Returns a list of Node objects
+            # Transform trivial_nodes into a list of tuples (node_id, node_type)
+            for node in trivial_nodes:
+                alltrivs.append((node, node.node_type))
+        while alltrivs:
+            alltrivs = self.BFSattractors(alltrivs)
+            for node, node_val in alltrivs:
+                self.remove_node(node)
+                self.trivials[node] = node_val
+
+            # Recompute SCCs to reflect changes in the graph
+            self.tarjan_scc()
+            alltrivs = []
+            for scc in self.sccs:
+                trivial_nodes = scc.extractTrivials()  # Returns a list of Node objects
+                # Transform trivial_nodes into a list of tuples (node_id, node_type)
+                for node in trivial_nodes:
+                    alltrivs.append((node, node.node_type))
+        return
 
 def createGraph(filename):
     graph = Graph()
