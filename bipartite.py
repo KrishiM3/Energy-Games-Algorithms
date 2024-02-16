@@ -10,6 +10,10 @@ class Node:
         self.edges.append(edge)
     def add_incident(self, node):
         self.incidents.append(node)
+    
+    def reset(self):
+        self.edges = []
+        self.incidents = []
 
     def __repr__(self):
         return f"Node({self.node_id}, Type: {self.node_type})"
@@ -51,12 +55,14 @@ class SCC:
     
     def extractTrivials(self):
         trivialnodes = []
-        if (self.contains_max and self.contains_min == False):
-            isTrivial = singleTypeSCCtrivials(self, self.contains_max)
+        if (self.contains_max and self.contains_min == False or self.contains_min and self.contains_max == False):
+            isTrivial = self.singleTypeSCCtrivials(self.contains_max)
             if isTrivial:
-                return self.nodes
+                for node in self.nodes:
+                    trivialnodes.append(node.node_id)
+                return trivialnodes
         else:
-            minList, maxList = dualTypeSCCtrivials(self)
+            minList, maxList = self.dualTypeSCCtrivials()
             if minList:
                 trivialnodes.extend(minList)
             if maxList:
@@ -125,49 +131,62 @@ class SCC:
         IN each instance if there exists a negative cycle we wish to obtain this negative cycle.
         We return two variables, MinList and MaxList which are lists of negative cycles of their respective BMF instance if they exist.
         If only MaxList exists and MinList does not return None, MaxList. Analgously do the same in the converse situtation.   """
-        start_node_id = self.nodes[0].node_id
-        MinList = self.bellman_ford(start_node_id, isMaxOnly=False)
-        MaxList = self.bellman_ford(start_node_id, isMaxOnly=True)
+        maxSet = set()
+        minSet = set()
+        for node in self.nodes:
+            if node.node_type == "Min":
+                minSet.add(node)
+            else:
+                maxSet.add(node)
+        MinListSet = set()
+        MaxListSet = set()
+        for node in maxSet:
+            MaxList = self.bellman_ford(node.node_id, isMaxOnly=True)
+            if MaxList:
+                for id in MaxList:
+                    MaxListSet.add(id)
+        for node in minSet:
+            MinList = self.bellman_ford(node.node_id, isMaxOnly=False)
+            if MinList:
+                for id in MinList:
+                    MinListSet.add(id)
+        
 
-        return MinList, MaxList
+        return list(MinListSet), list(MaxListSet)
 
 
 
     def singleTypeSCCtrivials(self, isMaxOnly):
-        """ We want to do Karps Algorithm here, to find out if any negative cycles can be made
-            IF so then SCC entirety is trivial and thus all nodes inside are trivial
-            Else not 
-            We do this dependant on ownership of the SCC, if max owns then we invert all edges before committing to Karps Algorithm
+        """Use Karp's Algorithm to find if any negative cycles can be made
+        indicating the SCC is trivial.
         """
-        
         V = len(self.nodes)
         # Map node IDs to indices for easier access in the dp array
         node_index = {node.node_id: idx for idx, node in enumerate(self.nodes)}
-        
+
         # Initialize the dynamic programming table
         dp = [[float('inf')] * V for _ in range(V + 1)]
-        dp[0][0] = 0  # Starting from any node, 0 cost to reach itself with 0 edges
-        
-        # Building the DP table
+        for idx, node in enumerate(self.nodes):
+            dp[0][idx] = 0  # Initialize starting from any node with 0 cost to reach itself with 0 edges
+
+        # Building the DP table considering inverted weights for Max nodes
         for k in range(1, V + 1):
             for i, node in enumerate(self.nodes):
                 for edge in node.edges:
                     if edge.to_node.node_id in node_index:  # Ensure edge is within SCC
                         j = node_index[edge.to_node.node_id]
-                        # Invert edge weight if the SCC is owned by Max nodes
                         edge_weight = -edge.weight if isMaxOnly else edge.weight
-                        if dp[k-1][node_index[edge.from_node.node_id]] != float('inf'):
-                            dp[k][j] = min(dp[k][j], dp[k-1][node_index[edge.from_node.node_id]] + edge_weight)
-        
+                        if dp[k-1][i] != float('inf'):
+                            dp[k][j] = min(dp[k][j], dp[k-1][i] + edge_weight)
+
         # Finding the minimum mean weight cycle
         min_mean_weight = float('inf')
         for v in range(V):
-            max_mean_weight = float('-inf')
-            for k in range(1, V + 1):
-                if dp[k][v] != float('inf'):
-                    mean_weight = max(max_mean_weight, (dp[V][v] - dp[k][v]) / (V - k))
-            min_mean_weight = min(min_mean_weight, mean_weight)
-        
+            for k in range(1, V):
+                if dp[k][v] < float('inf'):
+                    mean_weight = (dp[V][v] - dp[k][v]) / (V - k)
+                    min_mean_weight = min(min_mean_weight, mean_weight)
+
         # A negative minimum mean weight indicates a trivial SCC for both Max and Min
         isTrivial = min_mean_weight < 0
         return isTrivial
@@ -222,6 +241,11 @@ class Graph:
             self.nodes = [node for node in self.nodes if node.node_id != node_id]
             # Also, update the edges list to ensure all references to the removed node are cleared
             self.edges = [edge for edge in self.edges if edge.from_node.node_id != node_id and edge.to_node.node_id != node_id]
+
+    def reset(self):
+        self.nodes = []
+        self.nodesList = {}
+        self.edges = []
 
     def __repr__(self):
         return f"Graph with {len(self.nodes)}, nodes and {len(self.edges)} edges"
@@ -307,14 +331,15 @@ class Graph:
 
         This is analagous for if the second element in our tuple is max.
         """
-        trivials = []  # Result array, will contain tuples of (Node object, 'min'/'max')
+        trivials = set()  # Result array, will contain tuples of (Node object, 'min'/'max')
         queue = alltrivs[:]  # Initialize queue with alltrivs
-        seen_trivials = {node.node_id: node_type for node, node_type in alltrivs}  # Track seen trivial nodes by their ID
+        # seen_trivials = {node.node_id: node_type for node, node_type in alltrivs}  # Track seen trivial nodes by their ID
+        seen_trivials = {}
 
         while queue:
             current_node, node_type = queue.pop(0)  # Dequeue the next node
             if current_node.node_id not in seen_trivials:  # Process if not already seen
-                trivials.append((current_node, node_type))  # Mark as trivial
+                trivials.add((current_node, node_type))  # Mark as trivial
                 seen_trivials[current_node.node_id] = node_type  # Track seen trivial nodes
 
                 # Process incident nodes
@@ -326,24 +351,30 @@ class Graph:
                         if incident_node_type == 'Min':
                             if incident_node.node_id not in seen_trivials:
                                 queue.append((incident_node, 'Min'))
-                                seen_trivials[incident_node.node_id] = 'Min'
+                                trivials.add((incident_node, 'Min'))
+                                # seen_trivials[incident_node.node_id] = 'Min'
                         elif incident_node_type == 'Max':
                             if all((edge.to_node.node_id in seen_trivials and seen_trivials[edge.to_node.node_id] == 'Min') for edge in incident_node.edges):
                                 if incident_node.node_id not in seen_trivials:
                                     queue.append((incident_node, 'Min'))
-                                    seen_trivials[incident_node.node_id] = 'Min'
+                                    trivials.add((incident_node, 'Min'))
+                                    # seen_trivials[incident_node.node_id] = 'Min'
                     
                     elif node_type == 'Max':
                         if incident_node_type == 'Max':
                             if incident_node.node_id not in seen_trivials:
                                 queue.append((incident_node, 'Max'))
-                                seen_trivials[incident_node.node_id] = 'Max'
+                                trivials.add((incident_node, 'Max'))
+                                # seen_trivials[incident_node.node_id] = 'Max'
                         elif incident_node_type == 'Min':
                             if all((edge.to_node.node_id in seen_trivials and seen_trivials[edge.to_node.node_id] == 'Max') for edge in incident_node.edges):
                                 if incident_node.node_id not in seen_trivials:
                                     queue.append((incident_node, 'Max'))
-                                    seen_trivials[incident_node.node_id] = 'Max'
-        return trivials
+                                    trivials.add((incident_node, 'Max'))
+                                    # seen_trivials[incident_node.node_id] = 'Max'
+        
+
+        return list(trivials)
 
     def removeAllTrivials(self):
         """ Aim of this function is to remove all Trivial Nodes and cycles found in our graph.
@@ -361,11 +392,11 @@ class Graph:
             trivial_nodes = scc.extractTrivials()  # Returns a list of Node objects
             # Transform trivial_nodes into a list of tuples (node_id, node_type)
             for node in trivial_nodes:
-                alltrivs.append((node, node.node_type))
+                alltrivs.append((self.nodesList[node], self.nodesList[node].node_type))
         while alltrivs:
             alltrivs = self.BFSattractors(alltrivs)
             for node, node_val in alltrivs:
-                self.remove_node(node)
+                self.remove_node(node.node_id)
                 self.trivials[node] = node_val
 
             # Recompute SCCs to reflect changes in the graph
@@ -375,8 +406,71 @@ class Graph:
                 trivial_nodes = scc.extractTrivials()  # Returns a list of Node objects
                 # Transform trivial_nodes into a list of tuples (node_id, node_type)
                 for node in trivial_nodes:
-                    alltrivs.append((node, node.node_type))
+                    alltrivs.append((self.nodesList[node], self.nodesList[node].node_type))
         return
+    
+    def findNewEdges(self,startNode,isMax):
+        """ This function runs bellman ford again but with special constraints. 
+        It finds all new edges from one node to all nodes of the opposite player if they are reachable.
+        So for the case of when the startNode is min, isMax will be false.
+        Thus we run bellman-ford from that start node, only considering edges from min -> min and min -> max
+        We then return a list of triplets, which has (startNodeid, endNodeID, weight)
+        now these triplets must be from Min -> Max exclusively and the weight must be < +inf. 
+        
+        If isMax is true, then we invert all edges. Then conduct bellman-ford from that start node only considering max -> max  and max -> min edges
+        We then return a list of triplets, which has (startNodeid, endNodeID, weight)
+        now these triplets must be from Max -> Min exclusively and the weight must be < +inf. """
+        # Returns a List of triplets corresponding to new edges in the form (startNode.id, endNode.id, Weight)
+        V = len(self.nodesList)
+        dist = {node_id: float('inf') for node_id in self.nodesList}
+        dist[startNode.node_id] = 0  # Initialize distance to start node as 0
+
+        # Determine the type of nodes to consider for outgoing edges based on startNode type
+        node_type_to_consider = startNode.node_type
+
+        # Run Bellman-Ford from startNode
+        # Only consider edges from nodes of the same type as startNode
+        # Invert all edges if startNode is Max
+        for _ in range(V-1):
+            for node_id, node in self.nodesList.items():
+                if node.node_type != node_type_to_consider:  # Skip nodes of a different type
+                    continue
+                for edge in node.edges:
+                    # Adjust edge weight based on isMax flag
+                    adjusted_weight = -edge.weight if isMax else edge.weight
+                    # Update distances if a shorter path is found
+                    if dist[node_id] + adjusted_weight < dist[edge.to_node.node_id]:
+                        dist[edge.to_node.node_id] = dist[node_id] + adjusted_weight
+
+        # Collect new edges from startNode to nodes of the opposite type
+        # If startNode is Max, invert the weight for the new edge
+        new_edges = []
+        opposite_type = 'Max' if node_type_to_consider == 'Min' else 'Min'
+        for node_id, node in self.nodesList.items():
+            if dist[node_id] < float('inf') and node.node_type == opposite_type:
+                # Adjust the weight for new edge creation based on isMax flag
+                new_edge_weight = dist[node_id] if not isMax else -dist[node_id]
+                new_edges.append((startNode.node_id, node_id, new_edge_weight))
+
+        return new_edges
+
+    def convertToBipartite(self):
+        self.tarjan_scc()
+        self.removeAllTrivials()
+        newedges = []
+        for node in self.nodes:
+            newedges.extend(self.findNewEdges(node, (node.node_type == "Max")))
+        oldnodeList = self.nodes
+        for node in oldnodeList:
+            node.reset()
+        self.reset()
+        for node in oldnodeList:
+            self.add_node(node)
+        for startnode, endnode, weight in newedges:
+            self.add_edge(startnode, endnode, weight) 
+        return
+
+
 
 def createGraph(filename):
     graph = Graph()
@@ -409,7 +503,7 @@ def createGraph(filename):
 
     return graph
 
-graph = createGraph(os.path.join('OinkEGtests', "vb054_EnergyTest.txt"))
+graph = createGraph(os.path.join('OinkEGtests', "vb057_EnergyTest.txt"))
 print(graph)
 for node in graph.nodes:
     print(node)
@@ -478,3 +572,11 @@ sccs = graph.tarjan_scc()
 print("Identified SCCs:")
 for scc in sccs:
     print(scc)
+
+graph.convertToBipartite()
+print(graph)
+for node in graph.nodes:
+    print(node)
+    node.printEdges()
+
+print(graph.trivials)
