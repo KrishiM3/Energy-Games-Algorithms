@@ -1,8 +1,8 @@
 Iteration Count: 2
-0 , has a energy value of: 117649
-7 , has a energy value of: 117355
-3 , has a energy value of: 117649
-2 , has a energy value of: 117306
-5 , has a energy value of: 117650
-6 , has a energy value of: 0
-16 , has a energy value of: 117306
+0 has energy value of: 117649
+2 has energy value of: 117306
+3 has energy value of: 117649
+5 has energy value of: 117650
+6 has energy value of: 0
+7 has energy value of: 117355
+16 has energy value of: 117306

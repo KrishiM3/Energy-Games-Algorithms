@@ -82,12 +82,13 @@ class SCC:
         edges = []
         for node in self.nodes:
             for edge in node.edges:
-                # For Min instance
-                if not isMaxOnly and node.node_type == 'Min' and edge.to_node.node_type == 'Min':
-                    edges.append((edge.from_node.node_id, edge.to_node.node_id, edge.weight))
-                # For Max instance
-                elif isMaxOnly and node.node_type == 'Max' and edge.to_node.node_type == 'Max':
-                    edges.append((edge.from_node.node_id, edge.to_node.node_id, -edge.weight))  # Invert weight
+                if edge.to_node.node_id in dist:
+                    # For Min instance
+                    if not isMaxOnly and node.node_type == 'Min' and edge.to_node.node_type == 'Min':
+                        edges.append((edge.from_node.node_id, edge.to_node.node_id, edge.weight))
+                    # For Max instance
+                    elif isMaxOnly and node.node_type == 'Max' and edge.to_node.node_type == 'Max':
+                        edges.append((edge.from_node.node_id, edge.to_node.node_id, -edge.weight))  # Invert weight
 
         # Bellman-Ford algorithm
         for _ in range(V-1):
@@ -468,8 +469,42 @@ class Graph:
             self.add_node(node)
         for startnode, endnode, weight in newedges:
             self.add_edge(startnode, endnode, weight) 
+
+        remainingTrivs = []
+        flag = True
+        while flag:
+            flag = False
+            for node in self.nodes:
+                oppositenodetype = 'Max' if node.node_type == 'Min' else 'Min'
+                if not node.edges:
+                    remainingTrivs.append((node, oppositenodetype))
+                    flag = True
+            if flag:
+                remainingTrivs = self.BFSattractors(remainingTrivs)
+                for node, node_val in remainingTrivs:
+                    self.remove_node(node.node_id)
+                    self.trivials[node] = node_val
         return
 
+    def writeGraphInfoToFile(self, filename):
+        with open(filename, 'w') as file:
+            # Extracting and sorting trivial node IDs for Min
+            min_trivials = sorted([node.node_id for node, winner in self.trivials.items() if winner == 'Min'])
+            file.write(",".join(map(str, min_trivials)) + "\n")
+
+            # Extracting and sorting trivial node IDs for Max
+            max_trivials = sorted([node.node_id for node, winner in self.trivials.items() if winner == 'Max'])
+            file.write(",".join(map(str, max_trivials)) + "\n")
+
+            # Writing each node's details
+            for node in self.nodes:
+                node_id = node.node_id
+                node_type = '0' if node.node_type == 'Min' else '1'
+                neighbours = [edge.to_node.node_id for edge in node.edges]
+                weights = [edge.weight for edge in node.edges]
+                neighbours_str = ",".join(map(str, neighbours))
+                weights_str = ",".join(map(str, weights))
+                file.write(f"{node_id} {node_type} {neighbours_str} {weights_str}\n")
 
 
 def createGraph(filename):
@@ -503,11 +538,34 @@ def createGraph(filename):
 
     return graph
 
-graph = createGraph(os.path.join('OinkEGtests', "vb057_EnergyTest.txt"))
-print(graph)
-for node in graph.nodes:
-    print(node)
-    node.printEdges()
+
+directory = 'OinkEGtests'
+for filename in os.listdir(directory):
+    file_path = os.path.join(directory, filename)
+    if os.path.isfile(file_path):
+        graph = createGraph(file_path)
+        print(graph)
+        for node in graph.nodes:
+            print(node)
+            node.printEdges()
+        sccs = graph.tarjan_scc()
+        print("Identified SCCs:")
+        for scc in sccs:
+            print(scc)
+        graph.convertToBipartite()
+        print(graph)
+        for node in graph.nodes:
+            print(node)
+            node.printEdges()
+        newFilename = os.path.join('OinkBipartiteEGs', 'b' + filename)
+        graph.writeGraphInfoToFile(newFilename)
+
+     
+# graph = createGraph(os.path.join('OinkEGtests', "vb203_EnergyTest.txt"))
+# print(graph)
+# for node in graph.nodes:
+#     print(node)
+#     node.printEdges()
 
 # # Initialize the Graph
 # graph = Graph()
@@ -567,16 +625,16 @@ for node in graph.nodes:
 # print(six)
 # six.printEdges()
 
-sccs = graph.tarjan_scc()
+# sccs = graph.tarjan_scc()
 
-print("Identified SCCs:")
-for scc in sccs:
-    print(scc)
+# print("Identified SCCs:")
+# for scc in sccs:
+#     print(scc)
 
-graph.convertToBipartite()
-print(graph)
-for node in graph.nodes:
-    print(node)
-    node.printEdges()
+# graph.convertToBipartite()
+# print(graph)
+# for node in graph.nodes:
+#     print(node)
+#     node.printEdges()
 
-print(graph.trivials)
+# print(graph.trivials)

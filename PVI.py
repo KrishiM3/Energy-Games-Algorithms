@@ -366,7 +366,7 @@ def createGraph(filename):
 
     return graph
 
-graph = createGraph(os.path.join('debugEGs', "debug9_EnergyTest.txt"))
+graph = createGraph(os.path.join('debugEGs', "debug10_EnergyTest.txt"))
 print(graph)
 for node in graph.nodes:
     print(node)

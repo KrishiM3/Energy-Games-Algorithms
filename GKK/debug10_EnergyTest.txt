@@ -1,0 +1,21 @@
+Iteration Count: 13
+0 , has a energy value of: Infinity
+1 , has a energy value of: Infinity
+2 , has a energy value of: Infinity
+3 , has a energy value of: Infinity
+4 , has a energy value of: Infinity
+5 , has a energy value of: Infinity
+6 , has a energy value of: Infinity
+7 , has a energy value of: Infinity
+8 , has a energy value of: Infinity
+9 , has a energy value of: Infinity
+10 , has a energy value of: Infinity
+11 , has a energy value of: Infinity
+12 , has a energy value of: Infinity
+13 , has a energy value of: Infinity
+14 , has a energy value of: Infinity
+15 , has a energy value of: Infinity
+16 , has a energy value of: Infinity
+17 , has a energy value of: Infinity
+18 , has a energy value of: Infinity
+19 , has a energy value of: Infinity

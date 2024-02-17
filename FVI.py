@@ -40,6 +40,8 @@ class Graph:
         self.nodes = []
         self.edges = []  # List to store all edges
         self.potentials = {}
+        self.trivialsMin = []
+        self.trivialsMax = []
     def add_node(self, node):
         """Add a node to the graph."""
         if node.node_id not in self.nodesList:
@@ -283,9 +285,19 @@ class Graph:
         newfile = os.path.join('Fast Value Iteration', os.path.basename(filename))
         with open(newfile, 'w') as file:
             file.write("Iteration Count: " + str(iteration) + "\n")
-            for node in self.nodes:
-                file.write(str(node.node_id) + " , has a energy value of: " + str(node.totalPotential) + "\n")
-                print("Node, ", node.node_id, "has energy value, ", node.totalPotential)
+            all_node_ids = sorted(set(self.trivialsMin + self.trivialsMax + [node.node_id for node in self.nodes]))
+            for node_id in all_node_ids:
+                if node_id in self.trivialsMin:
+                    energy_value = 0  # Assuming trivialMin nodes have an energy value of 0
+                elif node_id in self.trivialsMax:
+                    energy_value = float('inf')  # Assuming trivialMax nodes have an energy value of inf
+                else:
+                    node = self.nodesList[node_id]
+                    energy_value = node.totalPotential  # Fetch the energy value from the node object
+                
+                # Write to file (and optionally print) the node ID and its energy value
+                file.write(f"{node_id} has energy value of: {energy_value}\n")
+                print(f"Node {node_id} has energy value of: {energy_value}")
         return
         # EnPlus = {}
         # start = False
@@ -306,10 +318,19 @@ class Graph:
         # return
 
 def createGraph(filename):
+    print(filename)
     graph = Graph()
     with open(filename, 'r') as file:
+        linenumber = 0
         for line in file:
-            if line.strip():  # Check if line is not empty
+            line = line.strip()
+            if linenumber == 0:
+                if line:
+                    graph.trivialsMin = list(map(int, line.split(',')))
+            elif linenumber == 1:
+                if line:
+                    graph.trivialsMax = list(map(int, line.split(',')))
+            else: 
                 parts = line.strip().split(' ')
                 identifier = int(parts[0])
                 type = int(parts[1])
@@ -321,9 +342,11 @@ def createGraph(filename):
                     graph.add_node(Node(identifier, 'Min'))
                 else:
                     graph.add_node(Node(identifier, 'Max'))
+            linenumber += 1
     with open(filename, 'r') as file:
+        linenumber = 0
         for line in file:
-            if line.strip():  # Check if line is not empty
+            if line.strip() and linenumber > 1:  # Check if line is not empty
                 parts = line.strip().split(' ')
                 identifier = int(parts[0])
                 type = int(parts[1])
@@ -333,7 +356,7 @@ def createGraph(filename):
                 weights = list(map(int, weights))
                 for successor , weight in zip(successors,weights):
                     graph.add_edge(identifier, successor, weight)
-
+            linenumber += 1
     return graph
 
 # graph = createGraph(os.path.join('OinkEGtests', "vb192_EnergyTest.txt"))
@@ -343,7 +366,7 @@ def createGraph(filename):
 #     node.printEdges()
 
 # """
-directory = 'debugEGs'
+directory = 'OinkBipartiteEGs'
 for filename in os.listdir(directory):
     file_path = os.path.join(directory, filename)
     if os.path.isfile(file_path):
