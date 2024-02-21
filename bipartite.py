@@ -158,39 +158,38 @@ class SCC:
 
 
     def singleTypeSCCtrivials(self, isMaxOnly):
-        """Use Karp's Algorithm to find if any negative cycles can be made
+        """Use Floyd Warshalls's Algorithm to find if any negative cycles can be made
         indicating the SCC is trivial.
         """
         V = len(self.nodes)
-        # Map node IDs to indices for easier access in the dp array
         node_index = {node.node_id: idx for idx, node in enumerate(self.nodes)}
 
-        # Initialize the dynamic programming table
-        dp = [[float('inf')] * V for _ in range(V + 1)]
-        for idx, node in enumerate(self.nodes):
-            dp[0][idx] = 0  # Initialize starting from any node with 0 cost to reach itself with 0 edges
+        # Initialize the dynamic programming table for Floyd-Warshall adaptation
+        dp = [[float('inf')] * V for _ in range(V)]
+        for node in self.nodes:
+            dp[node_index[node.node_id]][node_index[node.node_id]] = 0  # Distance to self is 0
+        
+        # Adjust and apply edge weights
+        for node in self.nodes:
+            for edge in node.edges:
+                if edge.to_node.node_id in node_index:
+                    j = node_index[edge.to_node.node_id]
+                    edge_weight = -edge.weight if isMaxOnly else edge.weight
+                    dp[node_index[node.node_id]][j] = edge_weight
+        
+        # Run Floyd-Warshall algorithm to find shortest paths (adapted for cycle detection)
+        for k in range(V):
+            for i in range(V):
+                for j in range(V):
+                    if dp[i][k] + dp[k][j] < dp[i][j]:
+                        dp[i][j] = dp[i][k] + dp[k][j]
 
-        # Building the DP table considering inverted weights for Max nodes
-        for k in range(1, V + 1):
-            for i, node in enumerate(self.nodes):
-                for edge in node.edges:
-                    if edge.to_node.node_id in node_index:  # Ensure edge is within SCC
-                        j = node_index[edge.to_node.node_id]
-                        edge_weight = -edge.weight if isMaxOnly else edge.weight
-                        if dp[k-1][i] != float('inf'):
-                            dp[k][j] = min(dp[k][j], dp[k-1][i] + edge_weight)
+        # Check for negative cycles (which indicates a positive cycle in the original weights if isMaxOnly)
+        for i in range(V):
+            if dp[i][i] < 0:
+                return True  # Negative cycle detected, indicating a positive cycle in the original graph
 
-        # Finding the minimum mean weight cycle
-        min_mean_weight = float('inf')
-        for v in range(V):
-            for k in range(1, V):
-                if dp[k][v] < float('inf'):
-                    mean_weight = (dp[V][v] - dp[k][v]) / (V - k)
-                    min_mean_weight = min(min_mean_weight, mean_weight)
-
-        # A negative minimum mean weight indicates a trivial SCC for both Max and Min
-        isTrivial = min_mean_weight < 0
-        return isTrivial
+        return False  # No positive cycle detected
 
 
 class Graph:
@@ -355,11 +354,12 @@ class Graph:
                                 trivials.add((incident_node, 'Min'))
                                 # seen_trivials[incident_node.node_id] = 'Min'
                         elif incident_node_type == 'Max':
-                            if all((edge.to_node.node_id in seen_trivials and seen_trivials[edge.to_node.node_id] == 'Min') for edge in incident_node.edges):
-                                if incident_node.node_id not in seen_trivials:
-                                    queue.append((incident_node, 'Min'))
-                                    trivials.add((incident_node, 'Min'))
-                                    # seen_trivials[incident_node.node_id] = 'Min'
+                            if incident_node.node_id not in seen_trivials:
+                                if all((edge.to_node.node_id in seen_trivials and seen_trivials[edge.to_node.node_id] == 'Min') for edge in incident_node.edges):
+                                    if incident_node.node_id not in seen_trivials:
+                                        queue.append((incident_node, 'Min'))
+                                        trivials.add((incident_node, 'Min'))
+                                        # seen_trivials[incident_node.node_id] = 'Min'
                     
                     elif node_type == 'Max':
                         if incident_node_type == 'Max':
@@ -368,12 +368,13 @@ class Graph:
                                 trivials.add((incident_node, 'Max'))
                                 # seen_trivials[incident_node.node_id] = 'Max'
                         elif incident_node_type == 'Min':
-                            if all((edge.to_node.node_id in seen_trivials and seen_trivials[edge.to_node.node_id] == 'Max') for edge in incident_node.edges):
-                                if incident_node.node_id not in seen_trivials:
-                                    queue.append((incident_node, 'Max'))
-                                    trivials.add((incident_node, 'Max'))
-                                    # seen_trivials[incident_node.node_id] = 'Max'
-        
+                            if incident_node.node_id not in seen_trivials:
+                                if all((edge.to_node.node_id in seen_trivials and seen_trivials[edge.to_node.node_id] == 'Max') for edge in incident_node.edges):
+                                    if incident_node.node_id not in seen_trivials:
+                                        queue.append((incident_node, 'Max'))
+                                        trivials.add((incident_node, 'Max'))
+                                        # seen_trivials[incident_node.node_id] = 'Max'
+            
 
         return list(trivials)
 
@@ -561,7 +562,7 @@ for filename in os.listdir(directory):
         graph.writeGraphInfoToFile(newFilename)
 
      
-# graph = createGraph(os.path.join('OinkEGtests', "vb203_EnergyTest.txt"))
+# graph = createGraph(os.path.join('OinkEGtests', "vb052_EnergyTest.txt"))
 # print(graph)
 # for node in graph.nodes:
 #     print(node)

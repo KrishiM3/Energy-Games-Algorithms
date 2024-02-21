@@ -1,7 +1,7 @@
 Iteration Count: 1
-0 , has a energy value of: 0
-1 , has a energy value of: 0
-2 , has a energy value of: 0
-3 , has a energy value of: 1296
-4 , has a energy value of: 0
-5 , has a energy value of: 0
+0 Wins for: Min
+1 Wins for: Min
+2 Wins for: Min
+3 Wins for: Min
+4 Wins for: Min
+5 Wins for: Min

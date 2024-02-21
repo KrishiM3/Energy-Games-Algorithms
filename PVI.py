@@ -38,6 +38,8 @@ class Graph:
         # self.potentials = {}
         self.x = {} # signifies our PolPoten
         self.memo = {}
+        self.trivialsMin = []
+        self.trivialsMax = []
     def add_node(self, node):
         """Add a node to the graph."""
         if node.node_id not in self.nodesList:
@@ -274,9 +276,12 @@ class Graph:
         bounds = [(0, None)] * len(self.x)  # No bounds on x, ε >= 0
 
         # Solve the linear program
-        result = linprog(c, A_ub=A, b_ub=b_vec, bounds=bounds, method='simplex')
+        # Solve the linear program with increased verbosity
+        options = {'tol': 1.8e+39, 'disp': True}
+        result = linprog(c, A_ub=A, b_ub=b_vec, bounds=bounds, method='simplex', options=options)
+
         if not result.success:
-            print("Failure")
+            print("Failure: ", result.message)  # Provides the reason for failure
             sys.exit()
         node_to_x_value = {node_id: x_value for node_id, x_value in zip(self.x.keys(), result.x)}
         return node_to_x_value
@@ -306,28 +311,52 @@ class Graph:
         # x = dict(zip(self.nodesID, x))
         # return x
     
-    def PolyValIteration(self):
-        self.initX()
-        tight = self.obtainTightEdges(None)
-        delta = self.calculate_Delta(tight)
-        xplus = self.calculate_characterisation(delta) 
-        while self.stronglyViolatingCheck(delta):
-            epsilon = self.compute_EpsilonMax(xplus)
-            xplus = self.updateShift(epsilon, xplus) ## now xplus is now epsilon * X^+
-            self.x = self.realiseGraph(self.obtainTightEdges(xplus)) ## update our polhedron
-            tight = self.obtainTightEdges(None)
-            delta = self.calculate_Delta(tight)
-            xplus = self.calculate_characterisation(delta)
-        Wmax = set()
-        Wmin = set()
-        for node in self.nodes:
-            if xplus[node.node_id] and xplus[node.node_id] > 0:
-                Wmax.add(node)
-                print(str(node), " Wins for Max with energy value: Infinity")
-            else:
-                Wmin.add(node)
-                print(str(node), " Wins for Min with energy value: ", self.x[node.node_id])
-        
+    def PolyValIteration(self, filename):
+        newfile = os.path.join('Polyhedral Value Iteration', os.path.basename(filename))
+        with open(newfile, 'w') as file:
+            iterations = 0
+            if self.nodes:
+                iterations += 1
+                self.initX()
+                tight = self.obtainTightEdges(None)
+                delta = self.calculate_Delta(tight)
+                xplus = self.calculate_characterisation(delta) 
+                while self.stronglyViolatingCheck(delta):
+                    epsilon = self.compute_EpsilonMax(xplus)
+                    xplus = self.updateShift(epsilon, xplus) ## now xplus is now epsilon * X^+
+                    iterations += 1
+                    self.x = self.realiseGraph(self.obtainTightEdges(xplus)) ## update our polhedron
+                    tight = self.obtainTightEdges(None)
+                    delta = self.calculate_Delta(tight)
+                    xplus = self.calculate_characterisation(delta)
+            Wmax = set()
+            Wmin = set()
+            all_node_ids = sorted(set(self.trivialsMin + self.trivialsMax + [node.node_id for node in self.nodes]))
+            energy_value = 0
+            file.write("Iteration Count: " + str(iterations) + "\n")
+            for node_id in all_node_ids:
+                if node_id in self.trivialsMin:
+                    energy_value = 0  # Assuming trivialMin nodes have an energy value of 0
+                elif node_id in self.trivialsMax:
+                    energy_value = float('inf')  # Assuming trivialMax nodes have an energy value of inf
+                else:
+                    node = self.nodesList[node_id]
+                    if xplus[node.node_id] and xplus[node.node_id] > 0:
+                        Wmax.add(node)
+                        energy_value = float('inf')
+                        print(str(node), " Wins for Max with energy value: Infinity")
+                    else:
+                        Wmin.add(node)
+                        energy_value = 0
+                        print(str(node), " Wins for Min with energy value: ", self.x[node.node_id])
+                whoWins = ''
+                if energy_value != float('inf'):
+                    whoWins = 'Min'
+                else:
+                    whoWins = 'Max'
+                # Write to file (and optionally print) the node ID and its energy value
+                file.write(f"{node_id} Wins for: {whoWins}\n")
+                print(f"Node {node_id} Wins for: {whoWins}")
         return
     def __repr__(self):
         return f"Graph with {len(self.nodes)}, nodes and {len(self.edges)} edges"
@@ -336,10 +365,19 @@ class Graph:
 
 
 def createGraph(filename):
+    print(filename)
     graph = Graph()
     with open(filename, 'r') as file:
+        linenumber = 0
         for line in file:
-            if line.strip():  # Check if line is not empty
+            line = line.strip()
+            if linenumber == 0:
+                if line:
+                    graph.trivialsMin = list(map(int, line.split(',')))
+            elif linenumber == 1:
+                if line:
+                    graph.trivialsMax = list(map(int, line.split(',')))
+            else: 
                 parts = line.strip().split(' ')
                 identifier = int(parts[0])
                 type = int(parts[1])
@@ -351,9 +389,11 @@ def createGraph(filename):
                     graph.add_node(Node(identifier, 'Min'))
                 else:
                     graph.add_node(Node(identifier, 'Max'))
+            linenumber += 1
     with open(filename, 'r') as file:
+        linenumber = 0
         for line in file:
-            if line.strip():  # Check if line is not empty
+            if line.strip() and linenumber > 1:  # Check if line is not empty
                 parts = line.strip().split(' ')
                 identifier = int(parts[0])
                 type = int(parts[1])
@@ -363,16 +403,26 @@ def createGraph(filename):
                 weights = list(map(int, weights))
                 for successor , weight in zip(successors,weights):
                     graph.add_edge(identifier, successor, weight)
-
+            linenumber += 1
     return graph
 
-graph = createGraph(os.path.join('debugEGs', "debug10_EnergyTest.txt"))
+file_path = os.path.join('OinkBipartiteEGs', "bvb193_EnergyTest.txt")
+graph = createGraph(file_path)
 print(graph)
 for node in graph.nodes:
     print(node)
     node.printEdges()
 
-
+# directory = 'OinkBipartiteEGs'
+# for filename in os.listdir(directory):
+#     file_path = os.path.join(directory, filename)
+#     if os.path.isfile(file_path):
+#         graph = createGraph(file_path)
+#         print(graph)
+#         for node in graph.nodes:
+#             print(node)
+#             node.printEdges()
+#         graph.PolyValIteration(file_path)
 # Example Usage
 # Add nodes to the graph. The type ('Min' or 'Max') for each node is assumed based on the image.
 # Squares are 'Max' nodes and circles are 'Min' nodes as per mean-payoff game conventions.
@@ -417,4 +467,4 @@ for node in graph.nodes:
 # five.printEdges()
 # print(six)
 # six.printEdges()
-graph.PolyValIteration()
+graph.PolyValIteration(file_path)

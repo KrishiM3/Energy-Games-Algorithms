@@ -294,10 +294,14 @@ class Graph:
                 else:
                     node = self.nodesList[node_id]
                     energy_value = node.totalPotential  # Fetch the energy value from the node object
-                
+                whoWins = ''
+                if energy_value != float('inf'):
+                    whoWins = 'Min'
+                else:
+                    whoWins = 'Max'
                 # Write to file (and optionally print) the node ID and its energy value
-                file.write(f"{node_id} has energy value of: {energy_value}\n")
-                print(f"Node {node_id} has energy value of: {energy_value}")
+                file.write(f"{node_id} Wins for: {whoWins}\n")
+                print(f"Node {node_id} Wins for: {whoWins}")
         return
         # EnPlus = {}
         # start = False

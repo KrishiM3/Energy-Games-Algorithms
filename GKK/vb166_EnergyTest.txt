@@ -1,11 +1,11 @@
 Iteration Count: 5
-0 , has a energy value of: Infinity
-1 , has a energy value of: Infinity
-2 , has a energy value of: Infinity
-3 , has a energy value of: Infinity
-4 , has a energy value of: Infinity
-5 , has a energy value of: Infinity
-6 , has a energy value of: Infinity
-7 , has a energy value of: Infinity
-8 , has a energy value of: Infinity
-9 , has a energy value of: Infinity
+0 Wins for: Max
+1 Wins for: Max
+2 Wins for: Max
+3 Wins for: Max
+4 Wins for: Max
+5 Wins for: Max
+6 Wins for: Max
+7 Wins for: Max
+8 Wins for: Max
+9 Wins for: Max

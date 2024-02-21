@@ -33,6 +33,8 @@ class Graph:
         self.edges = []  # List to store all edges
         self.potentials = {}
         self.memo = {}
+        self.trivialsMin = []
+        self.trivialsMax = []
     def add_node(self, node):
         """Add a node to the graph."""
         if node.node_id not in self.nodesList:
@@ -260,13 +262,28 @@ class Graph:
         newfile = os.path.join('GKK', os.path.basename(filename))
         with open(newfile, 'w') as file:
             file.write("Iteration Count: " + str(iterations) + "\n")
-            for node in self.nodes:
-                if node in P_star:
-                    file.write(str(node.node_id) + " , has a energy value of: Infinity\n")
-                    print(str(node.node_id) + " , has a energy value of: Infinity") 
+            all_node_ids = sorted(set(self.trivialsMin + self.trivialsMax + [node.node_id for node in self.nodes]))
+            energy_value = 0
+            for node_id in all_node_ids:
+                if node_id in self.trivialsMin:
+                    energy_value = 0  # Assuming trivialMin nodes have an energy value of 0
+                elif node_id in self.trivialsMax:
+                    energy_value = float('inf')  # Assuming trivialMax nodes have an energy value of inf
                 else:
-                    file.write(str(node.node_id) + " , has a energy value of: " + str(node.totalPotential) + "\n")
-                    print(str(node.node_id) + " , has a energy value of: " + str(node.totalPotential))
+                    node = self.nodesList[node_id]
+                    if node in P_star:
+                        energy_value = float('inf')
+                        print(str(node.node_id) + " , has a energy value of: Infinity") 
+                    else:
+                        energy_value = 0
+                        print(str(node.node_id) + " , has a energy value of: " + str(node.totalPotential))
+                whoWins = ''
+                if energy_value != float('inf'):
+                    whoWins = 'Min'
+                else:
+                    whoWins = 'Max'
+                file.write(f"{node_id} Wins for: {whoWins}\n")
+                print(f"Node {node_id} Wins for: {whoWins}")
         return N_star,P_star
 
     def run_gkk_algorithm(self):
@@ -275,6 +292,8 @@ class Graph:
         N_star = set()
         delta = 0
         counter = 0
+        if not self.nodes:
+            return N_star,P_star, iterations
         while delta != float('inf'):
             self.reset_potentials()
             for node in P_star:
@@ -292,10 +311,19 @@ class Graph:
 
 
 def createGraph(filename):
+    print(filename)
     graph = Graph()
     with open(filename, 'r') as file:
+        linenumber = 0
         for line in file:
-            if line.strip():  # Check if line is not empty
+            line = line.strip()
+            if linenumber == 0:
+                if line:
+                    graph.trivialsMin = list(map(int, line.split(',')))
+            elif linenumber == 1:
+                if line:
+                    graph.trivialsMax = list(map(int, line.split(',')))
+            else: 
                 parts = line.strip().split(' ')
                 identifier = int(parts[0])
                 type = int(parts[1])
@@ -307,9 +335,11 @@ def createGraph(filename):
                     graph.add_node(Node(identifier, 'Min'))
                 else:
                     graph.add_node(Node(identifier, 'Max'))
+            linenumber += 1
     with open(filename, 'r') as file:
+        linenumber = 0
         for line in file:
-            if line.strip():  # Check if line is not empty
+            if line.strip() and linenumber > 1:  # Check if line is not empty
                 parts = line.strip().split(' ')
                 identifier = int(parts[0])
                 type = int(parts[1])
@@ -319,7 +349,7 @@ def createGraph(filename):
                 weights = list(map(int, weights))
                 for successor , weight in zip(successors,weights):
                     graph.add_edge(identifier, successor, weight)
-
+            linenumber += 1
     return graph
 
 
@@ -367,7 +397,7 @@ def createGraph(filename):
 # five.printEdges()
 # print(six)
 # six.printEdges()
-directory = 'debugEGs'
+directory = 'OinkBipartiteEGs'
 for filename in os.listdir(directory):
     file_path = os.path.join(directory, filename)
     if os.path.isfile(file_path):

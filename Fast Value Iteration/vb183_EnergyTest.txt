@@ -1,23 +1,23 @@
 Iteration Count: 2
-0 , has a energy value of: 0
-1 , has a energy value of: inf
-2 , has a energy value of: 0
-3 , has a energy value of: 0
-4 , has a energy value of: 0
-5 , has a energy value of: 0
-6 , has a energy value of: inf
-7 , has a energy value of: 0
-8 , has a energy value of: 0
-9 , has a energy value of: 0
-10 , has a energy value of: 0
-11 , has a energy value of: 0
-12 , has a energy value of: 0
-13 , has a energy value of: 0
-14 , has a energy value of: 0
-15 , has a energy value of: 0
-16 , has a energy value of: 0
-17 , has a energy value of: 0
-18 , has a energy value of: 234256
-19 , has a energy value of: 0
-20 , has a energy value of: inf
-21 , has a energy value of: inf
+0 Wins for: Min
+1 Wins for: Max
+2 Wins for: Min
+3 Wins for: Min
+4 Wins for: Min
+5 Wins for: Min
+6 Wins for: Max
+7 Wins for: Min
+8 Wins for: Min
+9 Wins for: Min
+10 Wins for: Min
+11 Wins for: Min
+12 Wins for: Min
+13 Wins for: Min
+14 Wins for: Min
+15 Wins for: Min
+16 Wins for: Min
+17 Wins for: Min
+18 Wins for: Min
+19 Wins for: Min
+20 Wins for: Max
+21 Wins for: Max

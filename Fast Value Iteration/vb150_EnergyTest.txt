@@ -1,6 +1,6 @@
 Iteration Count: 1
-0 , has a energy value of: 25
-1 , has a energy value of: 0
-2 , has a energy value of: 25
-3 , has a energy value of: 0
-4 , has a energy value of: 50
+0 Wins for: Min
+1 Wins for: Min
+2 Wins for: Min
+3 Wins for: Min
+4 Wins for: Min

@@ -1,16 +1,16 @@
 Iteration Count: 3
-0 , has a energy value of: 6130514465332031250
-1 , has a energy value of: 0
-2 , has a energy value of: 0
-3 , has a energy value of: 0
-4 , has a energy value of: inf
-5 , has a energy value of: inf
-6 , has a energy value of: inf
-7 , has a energy value of: 0
-8 , has a energy value of: 0
-9 , has a energy value of: 0
-10 , has a energy value of: 6568408355712890625
-11 , has a energy value of: 0
-12 , has a energy value of: inf
-13 , has a energy value of: inf
-14 , has a energy value of: 6568408355712890625
+0 Wins for: Min
+1 Wins for: Min
+2 Wins for: Min
+3 Wins for: Min
+4 Wins for: Max
+5 Wins for: Max
+6 Wins for: Max
+7 Wins for: Min
+8 Wins for: Min
+9 Wins for: Min
+10 Wins for: Min
+11 Wins for: Min
+12 Wins for: Max
+13 Wins for: Max
+14 Wins for: Min
