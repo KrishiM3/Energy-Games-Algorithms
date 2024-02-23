@@ -370,7 +370,7 @@ def createGraph(filename):
 #     node.printEdges()
 
 # """
-directory = 'OinkBipartiteEGs'
+directory = 'PVIsafeOinkEGsBipartite'
 for filename in os.listdir(directory):
     file_path = os.path.join(directory, filename)
     if os.path.isfile(file_path):

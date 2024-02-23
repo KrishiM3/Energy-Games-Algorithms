@@ -20,7 +20,7 @@ def compare_files(file1, file2):
 
 def main():
     gkk_dir = 'GKK'
-    fvi_dir = 'Fast Value Iteration'
+    fvi_dir = 'Polyhedral Value Iteration'
 
 
     for filename in os.listdir(gkk_dir):

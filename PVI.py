@@ -277,7 +277,7 @@ class Graph:
 
         # Solve the linear program
         # Solve the linear program with increased verbosity
-        options = {'tol': 1.8e+39, 'disp': True}
+        options = {'disp': True}
         result = linprog(c, A_ub=A, b_ub=b_vec, bounds=bounds, method='simplex', options=options)
 
         if not result.success:
@@ -406,23 +406,23 @@ def createGraph(filename):
             linenumber += 1
     return graph
 
-file_path = os.path.join('OinkBipartiteEGs', "bvb193_EnergyTest.txt")
-graph = createGraph(file_path)
-print(graph)
-for node in graph.nodes:
-    print(node)
-    node.printEdges()
+# file_path = os.path.join('OinkBipartiteEGs', "bvb193_EnergyTest.txt")
+# graph = createGraph(file_path)
+# print(graph)
+# for node in graph.nodes:
+#     print(node)
+#     node.printEdges()
 
-# directory = 'OinkBipartiteEGs'
-# for filename in os.listdir(directory):
-#     file_path = os.path.join(directory, filename)
-#     if os.path.isfile(file_path):
-#         graph = createGraph(file_path)
-#         print(graph)
-#         for node in graph.nodes:
-#             print(node)
-#             node.printEdges()
-#         graph.PolyValIteration(file_path)
+directory = 'PVIsafeOinkEGsBipartite'
+for filename in os.listdir(directory):
+    file_path = os.path.join(directory, filename)
+    if os.path.isfile(file_path):
+        graph = createGraph(file_path)
+        print(graph)
+        for node in graph.nodes:
+            print(node)
+            node.printEdges()
+        graph.PolyValIteration(file_path)
 # Example Usage
 # Add nodes to the graph. The type ('Min' or 'Max') for each node is assumed based on the image.
 # Squares are 'Max' nodes and circles are 'Min' nodes as per mean-payoff game conventions.

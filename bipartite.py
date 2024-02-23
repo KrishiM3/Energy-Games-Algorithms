@@ -540,7 +540,7 @@ def createGraph(filename):
     return graph
 
 
-directory = 'OinkEGtests'
+directory = 'PVIsafeOinkEGs'
 for filename in os.listdir(directory):
     file_path = os.path.join(directory, filename)
     if os.path.isfile(file_path):
@@ -558,7 +558,7 @@ for filename in os.listdir(directory):
         for node in graph.nodes:
             print(node)
             node.printEdges()
-        newFilename = os.path.join('OinkBipartiteEGs', 'b' + filename)
+        newFilename = os.path.join('PVIsafeOinkEGsBipartite', 'b' + filename)
         graph.writeGraphInfoToFile(newFilename)
 
      
