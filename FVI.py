@@ -1,5 +1,6 @@
 import heapq
 import os
+from bipartite import Graph as Bipartite, Node as BNode
 class Node:
     def __init__(self, node_id, node_type):
         self.node_id = node_id
@@ -321,9 +322,12 @@ class Graph:
         #     print("Node, ", node.node_id, "has energy value, ", node.totalPotential)
         # return
 
-def createGraph(filename):
+def createGraph(filename, useBipartite):
     print(filename)
-    graph = Graph()
+    if useBipartite:
+        graph = Bipartite()
+    else:
+        graph = Graph()
     with open(filename, 'r') as file:
         linenumber = 0
         for line in file:
@@ -342,12 +346,19 @@ def createGraph(filename):
                 successors = list(map(int, successors))
                 weights = parts[3].split(',')
                 weights = list(map(int, weights))
-                if type == 0:
-                    graph.add_node(Node(identifier, 'Min'))
+                if useBipartite:
+                    if type == 0:
+                        graph.add_node(BNode(identifier, 'Min'))
+                    else:
+                        graph.add_node(BNode(identifier, 'Max'))
                 else:
-                    graph.add_node(Node(identifier, 'Max'))
+                    if type == 0:
+                        graph.add_node(Node(identifier, 'Min'))
+                    else:
+                        graph.add_node(Node(identifier, 'Max'))
             linenumber += 1
     with open(filename, 'r') as file:
+        length = linenumber - 2
         linenumber = 0
         for line in file:
             if line.strip() and linenumber > 1:  # Check if line is not empty
@@ -359,9 +370,20 @@ def createGraph(filename):
                 weights = parts[3].split(',')
                 weights = list(map(int, weights))
                 for successor , weight in zip(successors,weights):
-                    graph.add_edge(identifier, successor, weight)
+                    graph.add_edge(identifier, successor, (-length) ** weight)
             linenumber += 1
-    return graph
+    if useBipartite:
+        newGraph = Graph()
+        graph.convertToBipartite()
+        newGraph.trivialsMin = sorted([node.node_id for node, winner in graph.trivials.items() if winner == 'Min'])
+        newGraph.trivialsMax = sorted([node.node_id for node, winner in graph.trivials.items() if winner == 'Max'])
+        for node in graph.nodes:
+            newGraph.add_node(Node(node.node_id, node.node_type))
+        for edge in graph.edges:
+            newGraph.add_edge(edge.from_node.node_id, edge.to_node.node_id, edge.weight)
+        return newGraph
+    else:
+        return graph
 
 # graph = createGraph(os.path.join('OinkEGtests', "vb192_EnergyTest.txt"))
 # print(graph)
@@ -370,15 +392,18 @@ def createGraph(filename):
 #     node.printEdges()
 
 # """
-directory = 'PVIsafeOinkEGsBipartite'
+directory = 'PVIsafeOinkEGs'
 for filename in os.listdir(directory):
     file_path = os.path.join(directory, filename)
+    bipartite = True
     if os.path.isfile(file_path):
-        graph = createGraph(file_path)
+        graph = createGraph(file_path, bipartite)
         print(graph)
         for node in graph.nodes:
             print(node)
             node.printEdges()
+        if bipartite:
+            file_path = os.path.join(directory, 'b' + filename)
         graph.FVI(file_path)
 # """
 # Example Usage

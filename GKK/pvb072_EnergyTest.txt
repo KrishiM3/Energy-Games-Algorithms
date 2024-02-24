@@ -1,0 +1,10 @@
+Iteration Count: 5
+0 Wins for: Min
+1 Wins for: Max
+2 Wins for: Max
+3 Wins for: Min
+4 Wins for: Min
+5 Wins for: Min
+6 Wins for: Min
+7 Wins for: Min
+8 Wins for: Min

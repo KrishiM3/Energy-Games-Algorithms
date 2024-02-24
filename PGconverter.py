@@ -32,7 +32,7 @@ def convertPGfile(filename):
     base_name = os.path.splitext(os.path.basename(filename))[0]
 
     # Construct the new file path
-    newfile = os.path.join('PVIsafeOinkEGs', f"{base_name}_EnergyTest.txt")
+    newfile = os.path.join('EGtests', f"{base_name}_EnergyTest.txt")
     m = len(nodeDict)
     with open(newfile, 'w') as file:
         file.write("\n\n")
@@ -42,7 +42,7 @@ def convertPGfile(filename):
             weights = []
             for successor in node.successors:
                 edges.append(str(successor))
-                weights.append(str((-m) ** nodeDict[successor].priority))
+                weights.append(str(nodeDict[successor].priority))
             # Convert lists to comma-separated strings
             edges_str = ','.join(edges)
             weights_str = ','.join(weights)
@@ -52,7 +52,7 @@ def convertPGfile(filename):
     return 
 
 # Define the directory
-directory = 'PVIsafeOinkPGs'
+directory = 'PGtests'
 
 # Iterate over all files in the directory
 for filename in os.listdir(directory):

@@ -198,6 +198,8 @@ class Graph:
         self.nodes = []
         self.edges = []  # List to store all edges
         self.trivials = {}  # map to keep the trivial nodes and the winner of that respective node.
+        self.trivialsMin = []
+        self.trivialsMax = []
     def add_node(self, node):
         """Add a node to the graph."""
         if node.node_id not in self.nodesList:
@@ -511,8 +513,10 @@ class Graph:
 def createGraph(filename):
     graph = Graph()
     with open(filename, 'r') as file:
+        linenumber = 0
         for line in file:
             if line.strip():  # Check if line is not empty
+                linenumber += 1
                 parts = line.strip().split(' ')
                 identifier = int(parts[0])
                 type = int(parts[1])
@@ -535,7 +539,7 @@ def createGraph(filename):
                 weights = parts[3].split(',')
                 weights = list(map(int, weights))
                 for successor , weight in zip(successors,weights):
-                    graph.add_edge(identifier, successor, weight)
+                    graph.add_edge(identifier, successor, ((-linenumber) ** weight))
 
     return graph
 
