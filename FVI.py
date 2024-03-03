@@ -1,3 +1,4 @@
+#%%
 import heapq
 import os
 from bipartite import Graph as Bipartite, Node as BNode
@@ -5,6 +6,8 @@ import sys
 from decimal import Decimal
 from multiprocessing import Pool
 import time
+from graph_utils import convert_to_networkx, visualize_graph, visualize_bipartite_graph, visualize_winners, visualize_bipartite_winners
+
 sys.set_int_max_str_digits(1000000)
 class Node:
     def __init__(self, node_id, node_type):
@@ -280,7 +283,7 @@ class Graph:
                 change = True
         return change
     
-    def FVI(self,filename):
+    def FVI(self,filename,bipartite, showGraph, verbose):
         iteration = 0
         start_time = time.time()
         while True:
@@ -297,10 +300,15 @@ class Graph:
             iteration = iteration + 1
         end_time = time.time()
         elapsed_time = end_time - start_time
-        newfile = os.path.join('FVIPLsolverbi', os.path.basename(filename))
+        newfile = os.path.join('FVIDEMO', os.path.basename(filename))
+        minwinners = []
+        maxwinners = []
         with open(newfile, 'w') as file:
             file.write("Iteration Count: " + str(iteration) + "\n")
             file.write("Time Taken: " + str(elapsed_time) + "\n")
+            if verbose:
+                print("Iteration Count: " + str(iteration))
+                print("Time Taken: " + str(elapsed_time))
             all_node_ids = sorted(set(self.trivialsMin + self.trivialsMax + [node.node_id for node in self.nodes]))
             for node_id in all_node_ids:
                 if node_id in self.trivialsMin:
@@ -312,12 +320,20 @@ class Graph:
                     energy_value = node.totalPotential  # Fetch the energy value from the node object
                 whoWins = ''
                 if energy_value != Decimal('Inf'):
+                    minwinners.append(node_id)
                     whoWins = 'Min'
                 else:
+                    maxwinners.append(node_id)
                     whoWins = 'Max'
                 # Write to file (and optionally print) the node ID and its energy value
                 file.write(f"{node_id} Wins for: {whoWins}\n")
-                # print(f"Node {node_id} Wins for: {whoWins}")
+                if verbose:
+                    print(f"Node {node_id} Wins for: {whoWins}")
+            if showGraph:
+                if bipartite:
+                    visualize_bipartite_winners(self, minwinners, maxwinners)
+                else:
+                    visualize_winners(self, minwinners, maxwinners)
         return
         # EnPlus = {}
         # start = False
@@ -426,17 +442,27 @@ def createGraph(filename, useBipartite):
 #             file_path = os.path.join(directory, 'b' + filename)
 #         graph.FVI(file_path)
 
-directory = 'EGtests'
-
+directory = 'DEMO'
+#%%
 def process_file(file_path, filename):
     bipartite = True
+    showGraph = True
+    verbose = True
     if os.path.isfile(file_path):
         graph = createGraph(file_path, bipartite)
         if graph:
         # Assuming createGraph and FVI are defined elsewhere and are thread-safe
-            if bipartite:
-                file_path = os.path.join(directory, 'b' + filename)
-            graph.FVI(file_path)
+            if verbose:
+                print(graph)
+                for node in graph.nodes:
+                    print(node)
+                    node.printEdges()
+            if showGraph:
+                if bipartite:
+                    visualize_bipartite_graph(graph)
+                else:
+                    visualize_graph(graph)
+            graph.FVI(file_path, bipartite, showGraph, verbose)
 
 # Function to handle each file
 def handle_file(filename):
@@ -493,3 +519,5 @@ if __name__ == '__main__':
 # print(six)
 # six.printEdges()
 # graph.FVI()
+
+# %%

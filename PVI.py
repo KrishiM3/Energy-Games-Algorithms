@@ -1,8 +1,12 @@
+#%%
 from scipy.optimize import linprog
 import numpy as np
 import os
 import sys
+from multiprocessing import Pool
+import time
 from bipartite import Graph as Bipartite, Node as BNode
+from graph_utils import convert_to_networkx, visualize_graph, visualize_bipartite_graph, visualize_winners, visualize_bipartite_winners
 class Node:
     def __init__(self, node_id, node_type):
         self.node_id = node_id
@@ -312,9 +316,10 @@ class Graph:
         # x = dict(zip(self.nodesID, x))
         # return x
     
-    def PolyValIteration(self, filename):
-        newfile = os.path.join('Polyhedral Value Iteration', os.path.basename(filename))
+    def PolyValIteration(self, filename, showGraph, verbose):
+        newfile = os.path.join('PVIDEMO', os.path.basename(filename))
         with open(newfile, 'w') as file:
+            start_time = time.time()
             iterations = 0
             if self.nodes:
                 iterations += 1
@@ -330,11 +335,17 @@ class Graph:
                     tight = self.obtainTightEdges(None)
                     delta = self.calculate_Delta(tight)
                     xplus = self.calculate_characterisation(delta)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
             Wmax = set()
             Wmin = set()
             all_node_ids = sorted(set(self.trivialsMin + self.trivialsMax + [node.node_id for node in self.nodes]))
             energy_value = 0
             file.write("Iteration Count: " + str(iterations) + "\n")
+            file.write("Time Taken: " + str(elapsed_time) + "\n")
+            if verbose:
+                print("Iteration Count: " + str(iterations))
+                print("Time Taken: " + str(elapsed_time))
             for node_id in all_node_ids:
                 if node_id in self.trivialsMin:
                     energy_value = 0  # Assuming trivialMin nodes have an energy value of 0
@@ -343,13 +354,11 @@ class Graph:
                 else:
                     node = self.nodesList[node_id]
                     if xplus[node.node_id] and xplus[node.node_id] > 0:
-                        Wmax.add(node)
+                        Wmax.add(node.node_id)
                         energy_value = float('inf')
-                        print(str(node), " Wins for Max with energy value: Infinity")
                     else:
-                        Wmin.add(node)
+                        Wmin.add(node.node_id)
                         energy_value = 0
-                        print(str(node), " Wins for Min with energy value: ", self.x[node.node_id])
                 whoWins = ''
                 if energy_value != float('inf'):
                     whoWins = 'Min'
@@ -357,7 +366,10 @@ class Graph:
                     whoWins = 'Max'
                 # Write to file (and optionally print) the node ID and its energy value
                 file.write(f"{node_id} Wins for: {whoWins}\n")
-                print(f"Node {node_id} Wins for: {whoWins}")
+                if verbose:
+                    print(f"Node {node_id} Wins for: {whoWins}")
+            if showGraph:
+                visualize_bipartite_winners(self,Wmin,Wmax)
         return
     def __repr__(self):
         return f"Graph with {len(self.nodes)}, nodes and {len(self.edges)} edges"
@@ -435,19 +447,35 @@ def createGraph(filename, useBipartite):
 #     print(node)
 #     node.printEdges()
 
-directory = 'PVIsafeOinkEGs'
-for filename in os.listdir(directory):
+#%%
+directory = 'DEMO'
+def process_file(filename):
+    verbose = True
+    showGraph = True
     file_path = os.path.join(directory, filename)
-    bipartite = True
     if os.path.isfile(file_path):
-        graph = createGraph(file_path, bipartite)
-        print(graph)
-        for node in graph.nodes:
-            print(node)
-            node.printEdges()
-        if bipartite:
-            file_path = os.path.join(directory, 'b' + filename)
-        graph.PolyValIteration(file_path)
+        graph = createGraph(file_path, True)
+        if verbose:
+            print(graph)
+            for node in graph.nodes:
+                print(node)
+                node.printEdges()
+        file_path = os.path.join(directory, filename)
+        if showGraph:
+            visualize_bipartite_graph(graph)
+        graph.PolyValIteration(file_path, showGraph, verbose)
+
+# This function is executed by each worker in the pool
+def handle_file(filename):
+    print(f"Processing {filename}")  # This replaces the count for tracking
+    process_file(filename)
+
+if __name__ == '__main__':
+    filenames = os.listdir(directory)
+    with Pool() as pool:
+        pool.map(handle_file, filenames)
+
+
 # Example Usage
 # Add nodes to the graph. The type ('Min' or 'Max') for each node is assumed based on the image.
 # Squares are 'Max' nodes and circles are 'Min' nodes as per mean-payoff game conventions.
@@ -492,4 +520,4 @@ for filename in os.listdir(directory):
 # five.printEdges()
 # print(six)
 # six.printEdges()
-graph.PolyValIteration(file_path)
+# %%

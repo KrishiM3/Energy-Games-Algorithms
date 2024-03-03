@@ -264,12 +264,15 @@ class Graph:
             plus = float('inf')
         return min(-minus,plus)
 
-    def extract_strategies(self, filename, bipartite):
+    def extract_strategies(self, filename, bipartite,showGraph , verbose):
         N_star, P_star, iterations, elapsedtime = self.run_gkk_algorithm() # type: ignore
         newfile = os.path.join('GKKDEMO', os.path.basename(filename))
         with open(newfile, 'w') as file:
             file.write("Iteration Count: " + str(iterations) + "\n")
             file.write("Time Taken: " + str(elapsedtime) + "\n")
+            if verbose:
+                print("Iteration Count: " + str(iterations))
+                print("Time Taken: " + str(elapsedtime))
             all_node_ids = sorted(set(self.trivialsMin + self.trivialsMax + [node.node_id for node in self.nodes]))
             energy_value = 0
             minwinners = []
@@ -295,11 +298,13 @@ class Graph:
                     maxWinners.append(node_id)
                     whoWins = 'Max'
                 file.write(f"{node_id} Wins for: {whoWins}\n")
-                # print(f"Node {node_id} Wins for: {whoWins}")
-            if bipartite:
-                visualize_bipartite_winners(self,minwinners,maxWinners)
-            else:
-                visualize_winners(self, minwinners, maxWinners)
+                if verbose:
+                    print(f"Node {node_id} Wins for: {whoWins}")
+            if showGraph:
+                if bipartite:
+                    visualize_bipartite_winners(self,minwinners,maxWinners)
+                else:
+                    visualize_winners(self, minwinners, maxWinners)
         return N_star,P_star
 
     def run_gkk_algorithm(self):
@@ -467,15 +472,22 @@ directory = 'DEMO'
 def process_file(filename):
     file_path = os.path.join(directory, filename)
     bipartite = True
+    verbose = True
+    showGraph = True
     if os.path.isfile(file_path):
         graph = createGraph(file_path, bipartite)
         if graph:
-            if bipartite:
-                file_path = os.path.join(directory, 'b' + filename)
-                visualize_bipartite_graph(graph)
-            else:
-                visualize_graph(graph)
-            N_star, P_star = graph.extract_strategies(file_path, bipartite)
+            if verbose:
+                print(graph)
+                for node in graph.nodes:
+                    print(node)
+                    node.printEdges()
+            if showGraph:
+                if bipartite:
+                    visualize_bipartite_graph(graph)
+                else:
+                    visualize_graph(graph)
+            N_star, P_star = graph.extract_strategies(file_path, bipartite, showGraph, verbose)
         # You can print or log N_star and P_star here, if needed
 #%%
 # This function is executed by each worker in the pool
@@ -488,7 +500,3 @@ if __name__ == '__main__':
     with Pool() as pool:
         pool.map(handle_file, filenames)
 
-
-
-
-# %%
