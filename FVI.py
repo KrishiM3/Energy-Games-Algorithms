@@ -1,6 +1,11 @@
 import heapq
 import os
 from bipartite import Graph as Bipartite, Node as BNode
+import sys
+from decimal import Decimal
+from multiprocessing import Pool
+import time
+sys.set_int_max_str_digits(1000000)
 class Node:
     def __init__(self, node_id, node_type):
         self.node_id = node_id
@@ -9,7 +14,7 @@ class Node:
         self.incidents = [] # List of nodes incident to this node
         self.totalPotential = 0
         self.prevPotential = 0
-        self.heapValue = float("inf") ## init to infinity for calculating Enplus values.
+        self.heapValue = Decimal("Inf") ## init to infinity for calculating Enplus values.
 
     def add_edge(self, edge):
         self.edges.append(edge)
@@ -70,7 +75,7 @@ class Graph:
         for node in self.nodes:
             node.totalPotential = node.totalPotential + self.potentials[node.node_id]
             # self.set_potential(node, 0)
-            node.heapValue = float("inf") ## resets heapvalues also. 
+            node.heapValue = Decimal("Inf") ## resets heapvalues also. 
         return
     def apply_modified(self, modified_weights):
         for edge in self.edges:
@@ -85,10 +90,15 @@ class Graph:
         for edge in self.edges:
             # Adjust the weight of the edge using the potentials of its nodes
             adjusted_weight = 0
-            if self.potentials[edge.to_node.node_id] == float("inf") and self.potentials[edge.from_node.node_id] == float("inf"):
+            if self.potentials[edge.to_node.node_id] == Decimal("Inf") and self.potentials[edge.from_node.node_id] == Decimal("Inf"):
                 adjusted_weight = edge.weight
             else:
-                adjusted_weight = edge.weight + self.potentials[edge.to_node.node_id] - self.potentials[edge.from_node.node_id]
+                if self.potentials[edge.to_node.node_id] == Decimal('Inf'):
+                    adjusted_weight = Decimal('Inf')
+                elif self.potentials[edge.from_node.node_id] == Decimal('Inf'):
+                    adjusted_weight = -Decimal('Inf')
+                else:
+                    adjusted_weight = edge.weight + self.potentials[edge.to_node.node_id] - self.potentials[edge.from_node.node_id]
             # Store the modified weight with a tuple of the edge's start and end node IDs
             modified_weights[edge] = adjusted_weight
         return modified_weights
@@ -154,7 +164,7 @@ class Graph:
         ## we also know at the beginning all nodes in F will have En+ as 0. so this is simply the smallest weights. 
                     
         for node in minSet:
-            currMin = float("inf")
+            currMin = Decimal("Inf")
             for edge in node.edges:
                 if edge.to_node in F:
                     currMin = min(currMin, modified_weights[edge])
@@ -213,7 +223,7 @@ class Graph:
                                 counters[incident] = currCount
 
                 ## now set the value of En^+ of the vertex with 0 count
-                nodemax = -float("inf")
+                nodemax = -Decimal("Inf")
                 for edge in elem.edges:
                     if  edge.to_node in EnPlus:
                         nodemax = max(modified_weights[edge] + EnPlus[edge.to_node], nodemax)
@@ -232,7 +242,7 @@ class Graph:
                     break
                 if elem is None:
                     break
-                if elem.heapValue == float("inf"):
+                if elem.heapValue == Decimal("Inf"):
                     minSet.add(elem)
                     break
                 else:
@@ -258,9 +268,9 @@ class Graph:
             
         ## now broken out, all remaining vertices have EN+ = inf
         for node in maxSet:
-            EnPlus[node] = float("inf")
+            EnPlus[node] = Decimal("Inf")
         for node in minSet:
-            EnPlus[node] = float("inf")
+            EnPlus[node] = Decimal("Inf")
         return EnPlus
         
     def existsChange(self,EnPlus):
@@ -272,6 +282,7 @@ class Graph:
     
     def FVI(self,filename):
         iteration = 0
+        start_time = time.time()
         while True:
             modified_weights = self.calculate_modified_weights()
             EnPlus = self.calculate_EnPlus(modified_weights)
@@ -281,28 +292,32 @@ class Graph:
             for node in self.nodes:
                 self.set_potential(node, EnPlus[node])
             self.reset_potentials()
-            print(iteration)
+            # if iteration % 20 == 0:
+            #     print(iteration)
             iteration = iteration + 1
-        newfile = os.path.join('Fast Value Iteration', os.path.basename(filename))
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        newfile = os.path.join('FVIPLsolverbi', os.path.basename(filename))
         with open(newfile, 'w') as file:
             file.write("Iteration Count: " + str(iteration) + "\n")
+            file.write("Time Taken: " + str(elapsed_time) + "\n")
             all_node_ids = sorted(set(self.trivialsMin + self.trivialsMax + [node.node_id for node in self.nodes]))
             for node_id in all_node_ids:
                 if node_id in self.trivialsMin:
                     energy_value = 0  # Assuming trivialMin nodes have an energy value of 0
                 elif node_id in self.trivialsMax:
-                    energy_value = float('inf')  # Assuming trivialMax nodes have an energy value of inf
+                    energy_value = Decimal('Inf')  # Assuming trivialMax nodes have an energy value of inf
                 else:
                     node = self.nodesList[node_id]
                     energy_value = node.totalPotential  # Fetch the energy value from the node object
                 whoWins = ''
-                if energy_value != float('inf'):
+                if energy_value != Decimal('Inf'):
                     whoWins = 'Min'
                 else:
                     whoWins = 'Max'
                 # Write to file (and optionally print) the node ID and its energy value
                 file.write(f"{node_id} Wins for: {whoWins}\n")
-                print(f"Node {node_id} Wins for: {whoWins}")
+                # print(f"Node {node_id} Wins for: {whoWins}")
         return
         # EnPlus = {}
         # start = False
@@ -330,7 +345,10 @@ def createGraph(filename, useBipartite):
         graph = Graph()
     with open(filename, 'r') as file:
         linenumber = 0
+        bound = 1002
         for line in file:
+            if linenumber > bound:
+                break
             line = line.strip()
             if linenumber == 0:
                 if line:
@@ -357,6 +375,8 @@ def createGraph(filename, useBipartite):
                     else:
                         graph.add_node(Node(identifier, 'Max'))
             linenumber += 1
+        if linenumber > bound:
+            return None
     with open(filename, 'r') as file:
         length = linenumber - 2
         linenumber = 0
@@ -392,19 +412,41 @@ def createGraph(filename, useBipartite):
 #     node.printEdges()
 
 # """
-directory = 'PVIsafeOinkEGs'
-for filename in os.listdir(directory):
-    file_path = os.path.join(directory, filename)
+# directory = 'EGtests'
+# for filename in os.listdir(directory):
+#     file_path = os.path.join(directory, filename)
+#     bipartite = False
+#     if os.path.isfile(file_path):
+#         graph = createGraph(file_path, bipartite)
+#         # print(graph)
+#         # for node in graph.nodes:
+#         #     print(node)
+#         #     node.printEdges()
+#         if bipartite:
+#             file_path = os.path.join(directory, 'b' + filename)
+#         graph.FVI(file_path)
+
+directory = 'EGtests'
+
+def process_file(file_path, filename):
     bipartite = True
     if os.path.isfile(file_path):
         graph = createGraph(file_path, bipartite)
-        print(graph)
-        for node in graph.nodes:
-            print(node)
-            node.printEdges()
-        if bipartite:
-            file_path = os.path.join(directory, 'b' + filename)
-        graph.FVI(file_path)
+        if graph:
+        # Assuming createGraph and FVI are defined elsewhere and are thread-safe
+            if bipartite:
+                file_path = os.path.join(directory, 'b' + filename)
+            graph.FVI(file_path)
+
+# Function to handle each file
+def handle_file(filename):
+    file_path = os.path.join(directory, filename)
+    process_file(file_path, filename)
+
+if __name__ == '__main__':
+    filenames = os.listdir(directory)
+    with Pool() as pool:
+        pool.map(handle_file, filenames)
 # """
 # Example Usage
 # Add nodes to the graph. The type ('Min' or 'Max') for each node is assumed based on the image.

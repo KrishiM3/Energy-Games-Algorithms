@@ -1,5 +1,11 @@
+#%%
 import os
 from bipartite import Graph as Bipartite, Node as BNode
+import sys
+from multiprocessing import Pool
+import time
+from graph_utils import convert_to_networkx, visualize_graph, visualize_bipartite_graph, visualize_winners, visualize_bipartite_winners
+# sys.set_int_max_str_digits(1000000)
 class Node:
     def __init__(self, node_id, node_type):
         self.node_id = node_id
@@ -258,13 +264,16 @@ class Graph:
             plus = float('inf')
         return min(-minus,plus)
 
-    def extract_strategies(self, filename):
-        N_star, P_star, iterations = self.run_gkk_algorithm()
-        newfile = os.path.join('GKK', os.path.basename(filename))
+    def extract_strategies(self, filename, bipartite):
+        N_star, P_star, iterations, elapsedtime = self.run_gkk_algorithm() # type: ignore
+        newfile = os.path.join('GKKDEMO', os.path.basename(filename))
         with open(newfile, 'w') as file:
             file.write("Iteration Count: " + str(iterations) + "\n")
+            file.write("Time Taken: " + str(elapsedtime) + "\n")
             all_node_ids = sorted(set(self.trivialsMin + self.trivialsMax + [node.node_id for node in self.nodes]))
             energy_value = 0
+            minwinners = []
+            maxWinners = []
             for node_id in all_node_ids:
                 if node_id in self.trivialsMin:
                     energy_value = 0  # Assuming trivialMin nodes have an energy value of 0
@@ -274,27 +283,34 @@ class Graph:
                     node = self.nodesList[node_id]
                     if node in P_star:
                         energy_value = float('inf')
-                        print(str(node.node_id) + " , has a energy value of: Infinity") 
+                        # print(str(node.node_id) + " , has a energy value of: Infinity") 
                     else:
                         energy_value = 0
-                        print(str(node.node_id) + " , has a energy value of: " + str(node.totalPotential))
+                        # print(str(node.node_id) + " , has a energy value of: " + str(node.totalPotential))
                 whoWins = ''
                 if energy_value != float('inf'):
                     whoWins = 'Min'
+                    minwinners.append(node_id)
                 else:
+                    maxWinners.append(node_id)
                     whoWins = 'Max'
                 file.write(f"{node_id} Wins for: {whoWins}\n")
-                print(f"Node {node_id} Wins for: {whoWins}")
+                # print(f"Node {node_id} Wins for: {whoWins}")
+            if bipartite:
+                visualize_bipartite_winners(self,minwinners,maxWinners)
+            else:
+                visualize_winners(self, minwinners, maxWinners)
         return N_star,P_star
 
     def run_gkk_algorithm(self):
+        start_time = time.time()
         iterations = 0
         P_star = set()
         N_star = set()
         delta = 0
         counter = 0
         if not self.nodes:
-            return N_star,P_star, iterations
+            return N_star,P_star, iterations, 0
         while delta != float('inf'):
             self.reset_potentials()
             for node in P_star:
@@ -304,9 +320,13 @@ class Graph:
             self.apply_modified(modified)
             delta = self.calculate_Delta(N_star, P_star)
             iterations = iterations + 1
-        print("num of iterations is: ", iterations)
+            # if (iterations % 20 == 0):
+            #     print(iterations)
+        # print("num of iterations is: ", iterations)
         self.reset_potentials()
-        return N_star,P_star, iterations
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        return N_star,P_star,iterations,elapsed_time
 
     # Additional methods specific to the GKK algorithm can be added here.
 
@@ -319,7 +339,10 @@ def createGraph(filename, useBipartite):
         graph = Graph()
     with open(filename, 'r') as file:
         linenumber = 0
+        bound = 1002
         for line in file:
+            if linenumber > bound:
+                break
             line = line.strip()
             if linenumber == 0:
                 if line:
@@ -346,6 +369,8 @@ def createGraph(filename, useBipartite):
                     else:
                         graph.add_node(Node(identifier, 'Max'))
             linenumber += 1
+        if linenumber > bound:
+            return None
     with open(filename, 'r') as file:
         length = linenumber - 2
         linenumber = 0
@@ -419,18 +444,51 @@ def createGraph(filename, useBipartite):
 # five.printEdges()
 # print(six)
 # six.printEdges()
-directory = 'PVIsafeOinkEGs'
-for filename in os.listdir(directory):
+# directory = 'EGtests'
+# count = 0
+# for filename in os.listdir(directory):
+#     print(count)
+#     count += 1
+#     file_path = os.path.join(directory, filename)
+#     bipartite = False
+#     if os.path.isfile(file_path):
+#         graph = createGraph(file_path, bipartite)
+#         # print(graph)
+#         # for node in graph.nodes:
+#             # print(node)
+#             # node.printEdges()
+#         if bipartite:
+#             file_path = os.path.join(directory, 'b' + filename)
+#         N_star, P_star = graph.extract_strategies(file_path)
+#         # print(N_star)
+#         # print(P_star)
+    
+directory = 'DEMO'
+def process_file(filename):
     file_path = os.path.join(directory, filename)
     bipartite = True
     if os.path.isfile(file_path):
         graph = createGraph(file_path, bipartite)
-        print(graph)
-        for node in graph.nodes:
-            print(node)
-            node.printEdges()
-        if bipartite:
-            file_path = os.path.join(directory, 'b' + filename)
-        N_star, P_star = graph.extract_strategies(file_path)
-        print(N_star)
-        print(P_star)
+        if graph:
+            if bipartite:
+                file_path = os.path.join(directory, 'b' + filename)
+                visualize_bipartite_graph(graph)
+            else:
+                visualize_graph(graph)
+            N_star, P_star = graph.extract_strategies(file_path, bipartite)
+        # You can print or log N_star and P_star here, if needed
+#%%
+# This function is executed by each worker in the pool
+def handle_file(filename):
+    print(f"Processing {filename}")  # This replaces the count for tracking
+    process_file(filename)
+
+if __name__ == '__main__':
+    filenames = os.listdir(directory)
+    with Pool() as pool:
+        pool.map(handle_file, filenames)
+
+
+
+
+# %%

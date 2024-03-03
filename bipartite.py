@@ -1,4 +1,7 @@
 import os
+import sys
+from decimal import Decimal
+sys.setrecursionlimit(250000)
 class Node:
     def __init__(self, node_id, node_type):
         self.node_id = node_id
@@ -74,7 +77,7 @@ class SCC:
 
     def bellman_ford(self, start_node_id, isMaxOnly):
         V = len(self.nodes)
-        dist = {node.node_id: float('inf') for node in self.nodes}
+        dist = {node.node_id: Decimal('Inf') for node in self.nodes}
         dist[start_node_id] = 0
         predecessors = {node.node_id: None for node in self.nodes}
 
@@ -93,13 +96,13 @@ class SCC:
         # Bellman-Ford algorithm
         for _ in range(V-1):
             for u, v, w in edges:
-                if dist[u] != float('inf') and dist[u] + w < dist[v]:
+                if dist[u] != Decimal('Inf') and dist[u] + w < dist[v]:
                     dist[v] = dist[u] + w
                     predecessors[v] = u
         
         # Check for negative cycles
         for u, v, w in edges:
-            if dist[u] != float('inf') and dist[u] + w < dist[v]:
+            if dist[u] != Decimal('Inf') and dist[u] + w < dist[v]:
                 return self.reconstruct_negative_cycle(predecessors, v)
 
         return None
@@ -165,7 +168,7 @@ class SCC:
         node_index = {node.node_id: idx for idx, node in enumerate(self.nodes)}
 
         # Initialize the dynamic programming table for Floyd-Warshall adaptation
-        dp = [[float('inf')] * V for _ in range(V)]
+        dp = [[Decimal('Inf')] * V for _ in range(V)]
         for node in self.nodes:
             dp[node_index[node.node_id]][node_index[node.node_id]] = 0  # Distance to self is 0
         
@@ -426,7 +429,7 @@ class Graph:
         now these triplets must be from Max -> Min exclusively and the weight must be < +inf. """
         # Returns a List of triplets corresponding to new edges in the form (startNode.id, endNode.id, Weight)
         V = len(self.nodesList)
-        dist = {node_id: float('inf') for node_id in self.nodesList}
+        dist = {node_id: Decimal('Inf') for node_id in self.nodesList}
         dist[startNode.node_id] = 0  # Initialize distance to start node as 0
 
         # Determine the type of nodes to consider for outgoing edges based on startNode type
@@ -451,7 +454,7 @@ class Graph:
         new_edges = []
         opposite_type = 'Max' if node_type_to_consider == 'Min' else 'Min'
         for node_id, node in self.nodesList.items():
-            if dist[node_id] < float('inf') and node.node_type == opposite_type:
+            if dist[node_id] < Decimal('Inf') and node.node_type == opposite_type:
                 # Adjust the weight for new edge creation based on isMax flag
                 new_edge_weight = dist[node_id] if not isMax else -dist[node_id]
                 new_edges.append((startNode.node_id, node_id, new_edge_weight))
@@ -461,6 +464,7 @@ class Graph:
     def convertToBipartite(self):
         self.tarjan_scc()
         self.removeAllTrivials()
+        print('converted')
         newedges = []
         for node in self.nodes:
             newedges.extend(self.findNewEdges(node, (node.node_type == "Max")))
@@ -544,26 +548,26 @@ def createGraph(filename):
     return graph
 
 
-directory = 'PVIsafeOinkEGs'
-for filename in os.listdir(directory):
-    file_path = os.path.join(directory, filename)
-    if os.path.isfile(file_path):
-        graph = createGraph(file_path)
-        print(graph)
-        for node in graph.nodes:
-            print(node)
-            node.printEdges()
-        sccs = graph.tarjan_scc()
-        print("Identified SCCs:")
-        for scc in sccs:
-            print(scc)
-        graph.convertToBipartite()
-        print(graph)
-        for node in graph.nodes:
-            print(node)
-            node.printEdges()
-        newFilename = os.path.join('PVIsafeOinkEGsBipartite', 'b' + filename)
-        graph.writeGraphInfoToFile(newFilename)
+# directory = 'PVIsafeOinkEGs'
+# for filename in os.listdir(directory):
+#     file_path = os.path.join(directory, filename)
+#     if os.path.isfile(file_path):
+#         graph = createGraph(file_path)
+#         print(graph)
+#         for node in graph.nodes:
+#             print(node)
+#             node.printEdges()
+#         sccs = graph.tarjan_scc()
+#         print("Identified SCCs:")
+#         for scc in sccs:
+#             print(scc)
+#         graph.convertToBipartite()
+#         print(graph)
+#         for node in graph.nodes:
+#             print(node)
+#             node.printEdges()
+#         newFilename = os.path.join('PVIsafeOinkEGsBipartite', 'b' + filename)
+#         graph.writeGraphInfoToFile(newFilename)
 
      
 # graph = createGraph(os.path.join('OinkEGtests', "vb052_EnergyTest.txt"))
